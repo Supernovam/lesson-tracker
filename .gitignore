@@ -8,6 +8,7 @@ node_modules/
 # Build / cache
 dist/
 .cache/
+*.tsbuildinfo
 
 # OS
 .DS_Store

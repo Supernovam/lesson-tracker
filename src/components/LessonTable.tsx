@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback } from 'react';
 import { Trash2, Calendar, Clock, User, ChevronDown, ChevronUp, ChevronsUpDown } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import type { Lesson } from '../types/lesson';
 import { formatDisplayDate, formatDuration } from '../utils/format';
 
@@ -42,7 +43,7 @@ interface SortableHeaderProps {
   ariaSortLabel: string;
   sort: SortState;
   onSort: (column: SortableColumn) => void;
-  icon: React.ComponentType<{ className?: string; 'aria-hidden'?: boolean }>;
+  icon: LucideIcon;
 }
 
 function SortableHeader({
