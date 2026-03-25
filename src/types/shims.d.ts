@@ -21,9 +21,11 @@ declare module 'react/jsx-runtime' {
   export const Fragment: any;
 }
 
-declare namespace JSX {
-  interface IntrinsicElements {
-    [elemName: string]: any;
+declare global {
+  namespace JSX {
+    interface IntrinsicElements {
+      [elemName: string]: any;
+    }
   }
 }
 
@@ -31,6 +33,11 @@ declare global {
   interface ImportMeta {
     env: Record<string, any>;
   }
+}
+
+declare module '*.css' {
+  const css: any;
+  export default css;
 }
 
 export {};
