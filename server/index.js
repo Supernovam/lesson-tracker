@@ -25,7 +25,7 @@ function parseCsv(value) {
 //
 // For production, set `CORS_ORIGINS` explicitly (comma-separated origins; scheme+host only).
 // Example: https://supernovam.github.io,https://lesson-tracker-api.onrender.com
-const corsAllowAll = (process.env.CORS_ALLOW_ALL ?? '').toLowerCase() === 'true';
+const corsAllowAll = (process.env.CORS_ALLOW_ALL ?? '').trim().toLowerCase() === 'true';
 const defaultDevCorsOrigins = [
   'http://localhost:5173',
   'http://127.0.0.1:5173',
