@@ -87,7 +87,9 @@ export function LessonForm({ onSubmit }: LessonFormProps) {
             id="student-name"
             type="text"
             value={formData.studentName}
-            onChange={(e) => updateField('studentName', e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+              updateField('studentName', e.target.value)
+            }
             className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-800 placeholder-slate-400 focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
             autoComplete="name"
             aria-invalid={Boolean(errors.studentName)}
@@ -108,7 +110,7 @@ export function LessonForm({ onSubmit }: LessonFormProps) {
             id="lesson-date"
             type="date"
             value={formData.date}
-            onChange={(e) => updateField('date', e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateField('date', e.target.value)}
             className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-800 focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
             aria-invalid={Boolean(errors.date)}
             aria-describedby={errors.date ? 'lesson-date-error' : undefined}
@@ -150,7 +152,7 @@ export function LessonForm({ onSubmit }: LessonFormProps) {
           <textarea
             id="lesson-comment"
             value={formData.comment}
-            onChange={(e) => updateField('comment', e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => updateField('comment', e.target.value)}
             rows={3}
             className="w-full resize-y rounded-lg border border-slate-300 px-3 py-2 text-slate-800 placeholder-slate-400 focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"          />
         </div>
