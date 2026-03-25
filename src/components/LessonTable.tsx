@@ -1,13 +1,25 @@
 import { useState, useMemo, useCallback } from 'react';
 import type { ChangeEvent } from 'react';
-import { Trash2, Calendar, Clock, User, ChevronDown, ChevronUp, ChevronsUpDown } from 'lucide-react';
+import {
+  Trash2,
+  Calendar,
+  Clock,
+  User,
+  ChevronDown,
+  ChevronUp,
+  ChevronsUpDown,
+  Download,
+} from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { Lesson } from '../types/lesson';
 import { formatDisplayDate, formatDuration } from '../utils/format';
-
-type SortableColumn = 'studentName' | 'date';
-type SortDirection = 'asc' | 'desc';
-type SortState = { column: SortableColumn; direction: SortDirection } | null;
+import { LessonExcelExporter } from '../utils/exportUtils';
+import {
+  type SortableColumn,
+  type SortDirection,
+  type SortState,
+  getLessonsForDisplay,
+} from '../utils/lessonTableData';
 
 interface LessonTableProps {
   lessons: Lesson[];
@@ -29,31 +41,6 @@ const MONTH_OPTIONS = [
   { value: '10', label: 'November' },
   { value: '11', label: 'December' },
 ] as const;
-
-function sortLessons(
-  lessons: Lesson[],
-  column: SortableColumn,
-  direction: SortDirection
-): Lesson[] {
-  return [...lessons].sort((a, b) => {
-    let cmp = 0;
-
-    if (column === 'studentName') {
-      cmp = a.studentName.localeCompare(b.studentName, undefined, { sensitivity: 'base' });
-    } else {
-      const dateCmp = a.date.localeCompare(b.date);
-      if (dateCmp !== 0) {
-        cmp = dateCmp;
-      } else {
-        // Secondary key ensures deterministic ordering for same-day lessons.
-        cmp = a.createdAt - b.createdAt;
-      }
-    }
-
-    if (cmp !== 0) return direction === 'asc' ? cmp : -cmp;
-    return direction === 'asc' ? a.id.localeCompare(b.id) : b.id.localeCompare(a.id);
-  });
-}
 
 const headerButtonClass =
   'flex items-center gap-1.5 transition hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2 rounded';
@@ -121,18 +108,14 @@ export function LessonTable({ lessons, onDelete }: LessonTableProps) {
     });
   }, []);
 
-  const filteredLessons = useMemo(() => {
-    if (selectedMonth === 'all') return lessons;
-    return lessons.filter((lesson) => {
-      const [, month] = lesson.date.split('-');
-      return Number(month) - 1 === Number(selectedMonth);
-    });
-  }, [lessons, selectedMonth]);
+  const sortedLessons = useMemo(
+    () => getLessonsForDisplay(lessons, selectedMonth, sort),
+    [lessons, selectedMonth, sort]
+  );
 
-  const sortedLessons = useMemo(() => {
-    if (!sort) return filteredLessons;
-    return sortLessons(filteredLessons, sort.column, sort.direction);
-  }, [filteredLessons, sort]);
+  const handleExport = useCallback(() => {
+    LessonExcelExporter.downloadLessons(lessons, selectedMonth, sort);
+  }, [lessons, selectedMonth, sort]);
 
   if (lessons.length === 0) {
     return (
@@ -148,25 +131,37 @@ export function LessonTable({ lessons, onDelete }: LessonTableProps) {
 
   return (
     <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-      <div className="border-b border-slate-200 p-4">
-        <label htmlFor="month-filter" className="mr-2 text-sm font-medium text-slate-700">
-          Filter by month
-        </label>
-        <select
-          id="month-filter"
-          value={selectedMonth}
-          onChange={(event: ChangeEvent<HTMLSelectElement>) =>
-            setSelectedMonth(event.target.value as (typeof MONTH_OPTIONS)[number]['value'])
-          }
-          className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-400"
-          aria-label="Filter lessons by month"
+      <div className="flex flex-wrap items-center gap-3 border-b border-slate-200 p-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <label htmlFor="month-filter" className="text-sm font-medium text-slate-700">
+            Filter by month
+          </label>
+          <select
+            id="month-filter"
+            value={selectedMonth}
+            onChange={(event: ChangeEvent<HTMLSelectElement>) =>
+              setSelectedMonth(event.target.value as (typeof MONTH_OPTIONS)[number]['value'])
+            }
+            className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-400"
+            aria-label="Filter lessons by month"
+          >
+            {MONTH_OPTIONS.map((month) => (
+              <option key={month.value} value={month.value}>
+                {month.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <button
+          type="button"
+          onClick={handleExport}
+          disabled={sortedLessons.length === 0}
+          className="inline-flex items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400 disabled:cursor-not-allowed disabled:opacity-50"
+          aria-label="Export filtered lessons to Excel"
         >
-          {MONTH_OPTIONS.map((month) => (
-            <option key={month.value} value={month.value}>
-              {month.label}
-            </option>
-          ))}
-        </select>
+          <Download className="h-4 w-4 shrink-0" aria-hidden />
+          Export
+        </button>
       </div>
       <div className="overflow-x-auto">
         <table
