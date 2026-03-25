@@ -170,4 +170,57 @@ describe('LessonTable', () => {
 
     expect(onDelete).toHaveBeenCalledWith('lesson-1');
   });
+
+  it('filters lessons by selected month', () => {
+    const lessons: Lesson[] = [
+      createLesson({ id: '1', studentName: 'Alice', date: '2025-01-10' }),
+      createLesson({ id: '2', studentName: 'Bob', date: '2025-02-10' }),
+      createLesson({ id: '3', studentName: 'Charlie', date: '2025-03-10' }),
+    ];
+
+    render(<LessonTable lessons={lessons} onDelete={vi.fn()} />);
+
+    fireEvent.change(screen.getByLabelText(/filter lessons by month/i), {
+      target: { value: '1' },
+    });
+
+    const rows = screen.getAllByRole('row').slice(1);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].textContent).toContain('Bob');
+  });
+
+  it('shows full list when All is selected after month filter', () => {
+    const lessons: Lesson[] = [
+      createLesson({ id: '1', studentName: 'Alice', date: '2025-01-10' }),
+      createLesson({ id: '2', studentName: 'Bob', date: '2025-02-10' }),
+      createLesson({ id: '3', studentName: 'Charlie', date: '2025-03-10' }),
+    ];
+
+    render(<LessonTable lessons={lessons} onDelete={vi.fn()} />);
+
+    const monthSelect = screen.getByLabelText(/filter lessons by month/i);
+    fireEvent.change(monthSelect, { target: { value: '1' } });
+    fireEvent.change(monthSelect, { target: { value: 'all' } });
+
+    const rows = screen.getAllByRole('row').slice(1);
+    expect(rows).toHaveLength(3);
+    expect(rows[0].textContent).toContain('Alice');
+    expect(rows[1].textContent).toContain('Bob');
+    expect(rows[2].textContent).toContain('Charlie');
+  });
+
+  it('shows empty filtered state when no lessons match selected month', () => {
+    const lessons: Lesson[] = [
+      createLesson({ id: '1', studentName: 'Alice', date: '2025-01-10' }),
+      createLesson({ id: '2', studentName: 'Bob', date: '2025-02-10' }),
+    ];
+
+    render(<LessonTable lessons={lessons} onDelete={vi.fn()} />);
+
+    fireEvent.change(screen.getByLabelText(/filter lessons by month/i), {
+      target: { value: '11' },
+    });
+
+    expect(screen.getByText(/no lessons found for the selected month/i)).toBeDefined();
+  });
 });

@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback } from 'react';
+import type { ChangeEvent } from 'react';
 import { Trash2, Calendar, Clock, User, ChevronDown, ChevronUp, ChevronsUpDown } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { Lesson } from '../types/lesson';
@@ -12,6 +13,22 @@ interface LessonTableProps {
   lessons: Lesson[];
   onDelete: (id: string) => void;
 }
+
+const MONTH_OPTIONS = [
+  { value: 'all', label: 'All' },
+  { value: '0', label: 'January' },
+  { value: '1', label: 'February' },
+  { value: '2', label: 'March' },
+  { value: '3', label: 'April' },
+  { value: '4', label: 'May' },
+  { value: '5', label: 'June' },
+  { value: '6', label: 'July' },
+  { value: '7', label: 'August' },
+  { value: '8', label: 'September' },
+  { value: '9', label: 'October' },
+  { value: '10', label: 'November' },
+  { value: '11', label: 'December' },
+] as const;
 
 function sortLessons(
   lessons: Lesson[],
@@ -93,6 +110,7 @@ function SortableHeader({
 
 export function LessonTable({ lessons, onDelete }: LessonTableProps) {
   const [sort, setSort] = useState<SortState>(null);
+  const [selectedMonth, setSelectedMonth] = useState<(typeof MONTH_OPTIONS)[number]['value']>('all');
 
   const handleSort = useCallback((column: SortableColumn) => {
     setSort((prev) => {
@@ -103,10 +121,18 @@ export function LessonTable({ lessons, onDelete }: LessonTableProps) {
     });
   }, []);
 
+  const filteredLessons = useMemo(() => {
+    if (selectedMonth === 'all') return lessons;
+    return lessons.filter((lesson) => {
+      const [, month] = lesson.date.split('-');
+      return Number(month) - 1 === Number(selectedMonth);
+    });
+  }, [lessons, selectedMonth]);
+
   const sortedLessons = useMemo(() => {
-    if (!sort) return lessons;
-    return sortLessons(lessons, sort.column, sort.direction);
-  }, [lessons, sort]);
+    if (!sort) return filteredLessons;
+    return sortLessons(filteredLessons, sort.column, sort.direction);
+  }, [filteredLessons, sort]);
 
   if (lessons.length === 0) {
     return (
@@ -122,6 +148,26 @@ export function LessonTable({ lessons, onDelete }: LessonTableProps) {
 
   return (
     <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+      <div className="border-b border-slate-200 p-4">
+        <label htmlFor="month-filter" className="mr-2 text-sm font-medium text-slate-700">
+          Filter by month
+        </label>
+        <select
+          id="month-filter"
+          value={selectedMonth}
+          onChange={(event: ChangeEvent<HTMLSelectElement>) =>
+            setSelectedMonth(event.target.value as (typeof MONTH_OPTIONS)[number]['value'])
+          }
+          className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-400"
+          aria-label="Filter lessons by month"
+        >
+          {MONTH_OPTIONS.map((month) => (
+            <option key={month.value} value={month.value}>
+              {month.label}
+            </option>
+          ))}
+        </select>
+      </div>
       <div className="overflow-x-auto">
         <table
           className="w-full min-w-[600px] border-collapse text-left"
@@ -159,29 +205,37 @@ export function LessonTable({ lessons, onDelete }: LessonTableProps) {
             </tr>
           </thead>
           <tbody>
-            {sortedLessons.map((lesson) => (
-              <tr
-                key={lesson.id}
-                className="border-b border-slate-100 transition hover:bg-slate-50/50 last:border-b-0"
-              >
-                <td className="px-4 py-3 font-medium text-slate-800">{lesson.studentName}</td>
-                <td className="px-4 py-3 text-slate-600">{formatDisplayDate(lesson.date)}</td>
-                <td className="px-4 py-3 text-slate-600">{formatDuration(lesson.duration)}</td>
-                <td className="max-w-[200px] px-4 py-3 text-slate-600">
-                  <span className="line-clamp-2">{lesson.comment || '—'}</span>
-                </td>
-                <td className="px-4 py-3">
-                  <button
-                    type="button"
-                    onClick={() => onDelete(lesson.id)}
-                    className="rounded p-1.5 text-slate-400 transition hover:bg-red-50 hover:text-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
-                    aria-label={`Delete lesson for ${lesson.studentName} on ${formatDisplayDate(lesson.date)}`}
-                  >
-                    <Trash2 className="h-4 w-4" aria-hidden />
-                  </button>
+            {sortedLessons.length === 0 ? (
+              <tr>
+                <td colSpan={5} className="px-4 py-6 text-center text-slate-500">
+                  No lessons found for the selected month.
                 </td>
               </tr>
-            ))}
+            ) : (
+              sortedLessons.map((lesson) => (
+                <tr
+                  key={lesson.id}
+                  className="border-b border-slate-100 transition hover:bg-slate-50/50 last:border-b-0"
+                >
+                  <td className="px-4 py-3 font-medium text-slate-800">{lesson.studentName}</td>
+                  <td className="px-4 py-3 text-slate-600">{formatDisplayDate(lesson.date)}</td>
+                  <td className="px-4 py-3 text-slate-600">{formatDuration(lesson.duration)}</td>
+                  <td className="max-w-[200px] px-4 py-3 text-slate-600">
+                    <span className="line-clamp-2">{lesson.comment || '—'}</span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <button
+                      type="button"
+                      onClick={() => onDelete(lesson.id)}
+                      className="rounded p-1.5 text-slate-400 transition hover:bg-red-50 hover:text-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+                      aria-label={`Delete lesson for ${lesson.studentName} on ${formatDisplayDate(lesson.date)}`}
+                    >
+                      <Trash2 className="h-4 w-4" aria-hidden />
+                    </button>
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>
