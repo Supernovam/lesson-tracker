@@ -6,6 +6,12 @@ export default defineConfig({
   // Needed for GitHub Pages: https://supernovam.github.io/lesson-tracker/
   base: '/lesson-tracker/',
   plugins: [react()],
+  server: {
+    // Route API requests from the React app to the local Express server.
+    proxy: {
+      '/api': 'http://localhost:3001',
+    },
+  },
   test: {
     globals: true,
     environment: 'jsdom',

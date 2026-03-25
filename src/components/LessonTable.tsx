@@ -24,18 +24,24 @@ function sortLessons(
     if (column === 'studentName') {
       cmp = a.studentName.localeCompare(b.studentName, undefined, { sensitivity: 'base' });
     } else {
-      cmp = a.date.localeCompare(b.date);
+      const dateCmp = a.date.localeCompare(b.date);
+      if (dateCmp !== 0) {
+        cmp = dateCmp;
+      } else {
+        // Secondary key ensures deterministic ordering for same-day lessons.
+        cmp = a.createdAt - b.createdAt;
+      }
     }
 
     if (cmp !== 0) return direction === 'asc' ? cmp : -cmp;
-    return a.id.localeCompare(b.id);
+    return direction === 'asc' ? a.id.localeCompare(b.id) : b.id.localeCompare(a.id);
   });
 }
 
 const headerButtonClass =
   'flex items-center gap-1.5 transition hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2 rounded';
 const headerCellClass =
-  'px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-600';
+  'px-4 py-3 text-xs font-semibold tracking-wider text-slate-600';
 
 interface SortableHeaderProps {
   column: SortableColumn;

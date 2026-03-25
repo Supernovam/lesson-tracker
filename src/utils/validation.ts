@@ -45,7 +45,12 @@ export function validateLessonForm(data: LessonFormData): LessonValidationResult
  */
 export function parseDuration(value: unknown): number {
   const num = Number(value);
-  if (!Number.isFinite(num) || num < MIN_DURATION) return MIN_DURATION;
+  if (!Number.isFinite(num)) {
+    // Clamp +/-Infinity to sensible bounds.
+    if (num === Infinity) return MAX_DURATION;
+    return MIN_DURATION;
+  }
+  if (num < MIN_DURATION) return MIN_DURATION;
   if (num > MAX_DURATION) return MAX_DURATION;
   return Math.floor(num);
 }

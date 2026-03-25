@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import type React from 'react';
 import { BookOpen } from 'lucide-react';
 import type { LessonFormData } from '../types/lesson';
 import { validateLessonForm } from '../utils/validation';
@@ -7,7 +8,7 @@ import { getTodayISO } from '../utils/format';
 const DEFAULT_DURATION = 120;
 
 interface LessonFormProps {
-  onSubmit: (data: LessonFormData) => void;
+  onSubmit: (data: LessonFormData) => void | Promise<void>;
 }
 
 const initialFormState: LessonFormData = {
@@ -20,6 +21,8 @@ const initialFormState: LessonFormData = {
 export function LessonForm({ onSubmit }: LessonFormProps) {
   const [formData, setFormData] = useState<LessonFormData>(initialFormState);
   const [errors, setErrors] = useState<Partial<Record<keyof LessonFormData, string>>>({});
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const updateField = useCallback(<K extends keyof LessonFormData>(field: K, value: LessonFormData[K]) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -27,17 +30,26 @@ export function LessonForm({ onSubmit }: LessonFormProps) {
   }, [errors]);
 
   const handleSubmit = useCallback(
-    (e: React.FormEvent) => {
+    async (e: React.FormEvent) => {
       e.preventDefault();
       const result = validateLessonForm(formData);
       setErrors(result.errors);
       if (!result.valid) return;
-      onSubmit(formData);
-      setFormData({
-        ...initialFormState,
-        date: getTodayISO(),
-        duration: DEFAULT_DURATION,
-      });
+      setSubmitError(null);
+      setIsSubmitting(true);
+      try {
+        await onSubmit(formData);
+        setFormData({
+          ...initialFormState,
+          date: getTodayISO(),
+          duration: DEFAULT_DURATION,
+        });
+      } catch (err) {
+        if (err instanceof Error) setSubmitError(err.message);
+        else setSubmitError('Failed to save lesson. Please try again.');
+      } finally {
+        setIsSubmitting(false);
+      }
     },
     [formData, onSubmit]
   );
@@ -145,11 +157,17 @@ export function LessonForm({ onSubmit }: LessonFormProps) {
       </div>
 
       <div className="mt-6">
+        {submitError && (
+          <p className="mb-3 text-sm text-red-600" role="alert">
+            {submitError}
+          </p>
+        )}
         <button
           type="submit"
           className="w-full rounded-lg bg-slate-800 px-4 py-2.5 font-medium text-white transition hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 sm:w-auto sm:min-w-[140px]"
+          disabled={isSubmitting}
         >
-          Save lesson
+          {isSubmitting ? 'Saving...' : 'Save lesson'}
         </button>
       </div>
     </form>

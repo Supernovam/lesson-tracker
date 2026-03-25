@@ -1,70 +1,94 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { Lesson, LessonFormData } from '../types/lesson';
-import { LESSONS_STORAGE_KEY } from '../constants/storage';
+const API_BASE = ''; // Uses Vite dev proxy for local development.
 
-function generateId(): string {
-  return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-}
-
-function loadLessonsFromStorage(): Lesson[] {
-  try {
-    const raw = localStorage.getItem(LESSONS_STORAGE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter(
-      (item): item is Lesson =>
-        typeof item === 'object' &&
-        item !== null &&
-        typeof (item as Lesson).id === 'string' &&
-        typeof (item as Lesson).studentName === 'string' &&
-        typeof (item as Lesson).date === 'string' &&
-        typeof (item as Lesson).duration === 'number' &&
-        typeof (item as Lesson).comment === 'string' &&
-        typeof (item as Lesson).createdAt === 'number'
-    );
-  } catch {
-    return [];
+async function fetchLessons(signal?: AbortSignal): Promise<Lesson[]> {
+  const res = await fetch(`${API_BASE}/api/lessons`, { signal });
+  if (!res.ok) {
+    throw new Error(`Failed to load lessons: ${res.status} ${res.statusText}`);
   }
-}
-
-function saveLessonsToStorage(lessons: Lesson[]): void {
-  try {
-    localStorage.setItem(LESSONS_STORAGE_KEY, JSON.stringify(lessons));
-  } catch {
-    // ignore quota or other storage errors
-  }
+  return (await res.json()) as Lesson[];
 }
 
 /**
- * Custom hook for lesson list persisted in localStorage.
+ * Custom hook for lesson list persisted in Neon Postgres.
  * Returns lessons sorted by date (chronological, oldest first).
  */
 export function useLessonStorage() {
-  const [lessons, setLessons] = useState<Lesson[]>(() => loadLessonsFromStorage());
+  const [lessons, setLessons] = useState<Lesson[]>([]);
 
   useEffect(() => {
-    saveLessonsToStorage(lessons);
-  }, [lessons]);
+    const controller = new AbortController();
+    let isMounted = true;
 
-  const addLesson = useCallback((formData: LessonFormData) => {
-    const lesson: Lesson = {
-      id: generateId(),
+    fetchLessons(controller.signal)
+      .then((data) => {
+        if (isMounted) setLessons(data);
+      })
+      .catch((err) => {
+        // Ignore cancellation triggered by unmount.
+        if (err && (err as any).name === 'AbortError') return;
+        console.error(err);
+      });
+
+    return () => {
+      isMounted = false;
+      controller.abort();
+    };
+  }, []);
+
+  const addLesson = useCallback(async (formData: LessonFormData) => {
+    const payload = {
       studentName: formData.studentName.trim(),
       date: formData.date,
       duration: formData.duration,
       comment: formData.comment.trim(),
-      createdAt: Date.now(),
     };
+
+    // Update state only after the API confirms the insert.
+    const res = await fetch(`${API_BASE}/api/lessons`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      // Server responds with JSON like: { error: "..." } but we fall back to raw text.
+      let parsedError: string | undefined;
+      try {
+        const parsed = JSON.parse(text);
+        if (parsed && typeof parsed.error === 'string') parsedError = parsed.error;
+      } catch {
+        // ignore JSON parse errors and fall back below
+      }
+      throw new Error(parsedError || text || `${res.status} ${res.statusText}`);
+    }
+
+    const lesson = (await res.json()) as Lesson;
     setLessons((prev) => [...prev, lesson]);
   }, []);
 
   const deleteLesson = useCallback((id: string) => {
-    setLessons((prev) => prev.filter((l) => l.id !== id));
+    fetch(`${API_BASE}/api/lessons/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    })
+      .then((res) => {
+        if (!res.ok && res.status !== 404) throw new Error(`${res.status} ${res.statusText}`);
+      })
+      .then(() => setLessons((prev) => prev.filter((l) => l.id !== id)))
+      .catch((err) => {
+        console.error('Failed to delete lesson:', err);
+      });
   }, []);
 
   const lessonsByDate = [...lessons].sort(
-    (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+    (a, b) => {
+      const aTime = new Date(a.date).getTime();
+      const bTime = new Date(b.date).getTime();
+      if (aTime !== bTime) return aTime - bTime; // chronological (oldest first)
+      return a.createdAt - b.createdAt; // match server ordering for same-day lessons
+    }
   );
 
   return { lessons: lessonsByDate, addLesson, deleteLesson };
