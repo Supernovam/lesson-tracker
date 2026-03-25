@@ -1,9 +1,21 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { Lesson, LessonFormData } from '../types/lesson';
-const API_BASE = ''; // Uses Vite dev proxy for local development.
+
+function joinUrl(base: string, path: string) {
+  const b = base.replace(/\/+$/, '');
+  const p = path.replace(/^\/+/, '');
+  return b ? `${b}/${p}` : `/${p}`;
+}
+
+// In dev we rely on Vite's dev-server proxy (`server.proxy`) to forward `/api/*`
+// to the local Express API.
+// In production on GitHub Pages, `import.meta.env.BASE_URL` contains `/lesson-tracker/`,
+// so the default target becomes `/lesson-tracker/api/*`.
+// If your Express API is hosted elsewhere, set `VITE_API_BASE` to that URL at build time.
+const API_BASE = import.meta.env.VITE_API_BASE ?? (import.meta.env.DEV ? '' : import.meta.env.BASE_URL ?? '');
 
 async function fetchLessons(signal?: AbortSignal): Promise<Lesson[]> {
-  const res = await fetch(`${API_BASE}/api/lessons`, { signal });
+  const res = await fetch(joinUrl(API_BASE, '/api/lessons'), { signal });
   if (!res.ok) {
     throw new Error(`Failed to load lessons: ${res.status} ${res.statusText}`);
   }
@@ -27,7 +39,13 @@ export function useLessonStorage() {
       })
       .catch((err) => {
         // Ignore cancellation triggered by unmount.
-        if (err && (err as any).name === 'AbortError') return;
+        const maybeName =
+          err instanceof Error
+            ? err.name
+            : typeof err === 'object' && err !== null && 'name' in err
+              ? (err as { name?: unknown }).name
+              : undefined;
+        if (maybeName === 'AbortError') return;
         console.error(err);
       });
 
@@ -46,7 +64,7 @@ export function useLessonStorage() {
     };
 
     // Update state only after the API confirms the insert.
-    const res = await fetch(`${API_BASE}/api/lessons`, {
+    const res = await fetch(joinUrl(API_BASE, '/api/lessons'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -70,7 +88,7 @@ export function useLessonStorage() {
   }, []);
 
   const deleteLesson = useCallback((id: string) => {
-    fetch(`${API_BASE}/api/lessons/${encodeURIComponent(id)}`, {
+    fetch(joinUrl(API_BASE, `/api/lessons/${encodeURIComponent(id)}`), {
       method: 'DELETE',
     })
       .then((res) => {
