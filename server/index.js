@@ -5,11 +5,62 @@ import crypto from 'crypto';
 
 dotenv.config();
 
+const isProduction = process.env.NODE_ENV === 'production';
+
 // pg returns bigint as string by default; Lesson.createdAt fits safely into JS number range.
 types.setTypeParser(20, (val) => Number(val)); // 20 = int8
 
 const app = express();
 app.use(express.json());
+
+function parseCsv(value) {
+  return (value ?? '')
+    .split(',')
+    .map((v) => v.trim())
+    .filter(Boolean);
+}
+
+// GitHub Pages serves the frontend as a different origin than the API we deploy on Render.
+// Without CORS headers, browsers will block fetch() requests.
+//
+// For production, set `CORS_ORIGINS` explicitly (comma-separated origins; scheme+host only).
+// Example: https://supernovam.github.io,https://lesson-tracker-api.onrender.com
+const corsAllowAll = (process.env.CORS_ALLOW_ALL ?? '').toLowerCase() === 'true';
+const defaultDevCorsOrigins = [
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+  'http://localhost:3000',
+];
+const corsOrigins = (() => {
+  if (corsAllowAll) return ['*'];
+  const envOrigins = parseCsv(process.env.CORS_ORIGINS ?? process.env.CORS_ORIGIN ?? '');
+  if (envOrigins.length > 0) return envOrigins;
+  if (isProduction) return [];
+  return defaultDevCorsOrigins;
+})();
+
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  // No `Origin` header => not a browser CORS request.
+  if (!origin) return next();
+
+  const originAllowed = corsOrigins.includes('*') || corsOrigins.includes(origin);
+  if (!originAllowed) {
+    if (req.method === 'OPTIONS') {
+      return res.status(403).send('CORS origin not allowed');
+    }
+    return next();
+  }
+
+  res.setHeader('Access-Control-Allow-Origin', origin);
+  res.setHeader('Vary', 'Origin');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,DELETE,OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Max-Age', '86400');
+
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
+  return next();
+});
 
 function requiredEnv(name) {
   const v = process.env[name];
@@ -18,12 +69,22 @@ function requiredEnv(name) {
 }
 
 const PORT = process.env.PORT ? Number(process.env.PORT) : 3001;
+if (!Number.isFinite(PORT)) throw new Error('PORT must be a number');
 const DATABASE_URL = requiredEnv('DATABASE_URL');
+
+const databaseUrlWantsSsl = /sslmode=require/i.test(DATABASE_URL);
+const shouldUseSsl = isProduction || databaseUrlWantsSsl;
+const pgMax = process.env.PG_POOL_MAX ? Number(process.env.PG_POOL_MAX) : undefined;
+const pgConnectionTimeoutMillis = process.env.PG_CONNECTION_TIMEOUT_MS
+  ? Number(process.env.PG_CONNECTION_TIMEOUT_MS)
+  : undefined;
 
 const pool = new Pool({
   connectionString: DATABASE_URL,
-  // Neon requires SSL in production; enabling this is harmless for local connections that already work.
-  ssl: { rejectUnauthorized: false },
+  // Neon requires SSL in production.
+  ssl: shouldUseSsl ? { rejectUnauthorized: false } : undefined,
+  max: pgMax,
+  connectionTimeoutMillis: pgConnectionTimeoutMillis,
 });
 
 let dbReady = false;
@@ -40,6 +101,65 @@ async function ensureSchema() {
       created_at bigint NOT NULL
     );
   `);
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function ensureSchemaWithRetries() {
+  const maxAttempts = isProduction ? 8 : 4;
+  const baseDelayMs = isProduction ? 250 : 150;
+  let lastErr = null;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      // Force an actual connection attempt early to fail fast and retry on transient Neon issues.
+      await pool.query('SELECT 1');
+      await ensureSchema();
+      return;
+    } catch (err) {
+      lastErr = err;
+      const delayMs = baseDelayMs * 2 ** (attempt - 1);
+      console.error(
+        `[lesson-tracker] DB init attempt ${attempt}/${maxAttempts} failed; retrying in ${delayMs}ms:`,
+        err
+      );
+      if (attempt < maxAttempts) await sleep(delayMs);
+    }
+  }
+
+  throw lastErr;
+}
+
+function startServer() {
+  app.listen(PORT, () => {
+    console.log(`[lesson-tracker] API listening on port ${PORT}${dbReady ? '' : ' (db not ready yet)'}`);
+  });
+}
+
+process.on('SIGTERM', async () => {
+  console.log('[lesson-tracker] SIGTERM received; shutting down...');
+  try {
+    await pool.end();
+  } finally {
+    process.exit(0);
+  }
+});
+
+process.on('SIGINT', async () => {
+  console.log('[lesson-tracker] SIGINT received; shutting down...');
+  try {
+    await pool.end();
+  } finally {
+    process.exit(0);
+  }
+});
+
+if (isProduction && !corsAllowAll && corsOrigins.length === 0) {
+  console.warn(
+    '[lesson-tracker] CORS_ORIGINS is not set; browser requests from GitHub Pages will be blocked in production.'
+  );
 }
 
 app.get('/api/health', (_req, res) => {
@@ -135,18 +255,14 @@ app.delete('/api/lessons/:id', async (req, res) => {
   }
 });
 
-ensureSchema()
+ensureSchemaWithRetries()
   .then(() => {
     dbReady = true;
-    app.listen(PORT, () => {
-      console.log(`[lesson-tracker] API listening on http://localhost:${PORT}`);
-    });
+    startServer();
   })
   .catch((err) => {
     dbInitError = err;
     console.error('[lesson-tracker] DB init failed; API will still start:', err);
-    app.listen(PORT, () => {
-      console.log(`[lesson-tracker] API listening on http://localhost:${PORT} (db not ready yet)`);
-    });
+    startServer();
   });
 

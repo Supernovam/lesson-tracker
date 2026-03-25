@@ -9,10 +9,20 @@ function joinUrl(base: string, path: string) {
 
 // In dev we rely on Vite's dev-server proxy (`server.proxy`) to forward `/api/*`
 // to the local Express API.
-// In production on GitHub Pages, `import.meta.env.BASE_URL` contains `/lesson-tracker/`,
-// so the default target becomes `/lesson-tracker/api/*`.
-// If your Express API is hosted elsewhere, set `VITE_API_BASE` to that URL at build time.
-const API_BASE = import.meta.env.VITE_API_BASE ?? (import.meta.env.DEV ? '' : import.meta.env.BASE_URL ?? '');
+const apiBaseFromEnv = (import.meta.env.VITE_API_BASE ?? '').trim();
+const API_BASE = (() => {
+  if (apiBaseFromEnv) return apiBaseFromEnv;
+  if (import.meta.env.DEV) return '';
+
+  const baseUrl = (import.meta.env.BASE_URL ?? '').trim();
+  if (baseUrl) {
+    console.warn(
+      '[lesson-tracker] VITE_API_BASE is not set; falling back to same-origin API calls. ' +
+        'Set VITE_API_BASE at build time to use the Render backend.'
+    );
+  }
+  return baseUrl;
+})();
 
 async function fetchLessons(signal?: AbortSignal): Promise<Lesson[]> {
   const res = await fetch(joinUrl(API_BASE, '/api/lessons'), { signal });

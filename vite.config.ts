@@ -2,6 +2,9 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
 // https://vitejs.dev/config/
+declare const process: { env: Record<string, string | undefined> }
+const devApiTarget = process.env.VITE_DEV_API_URL ?? 'http://localhost:3001'
+
 export default defineConfig({
   // Needed for GitHub Pages: https://supernovam.github.io/lesson-tracker/
   base: '/lesson-tracker/',
@@ -9,7 +12,7 @@ export default defineConfig({
   server: {
     // Route API requests from the React app to the local Express server.
     proxy: {
-      '/api': 'http://localhost:3001',
+      '/api': devApiTarget,
     },
   },
   test: {

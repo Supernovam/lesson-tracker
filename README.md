@@ -43,3 +43,38 @@ npm install
 ## Design
 
 Clean, minimal UI: generous spacing, light borders, Inter font, and a responsive layout so the form and table work on small and large screens.
+
+## Production Deployment (Neon + Render + GitHub Pages)
+
+### Backend (Render)
+
+Render runs the Express API from `server/index.js`. Set these environment variables in your Render service:
+
+- `NODE_ENV=production`
+- `DATABASE_URL` (your Neon Postgres connection string; pooled connection string recommended)
+- `PORT` (optional; defaults to `3001`)
+- `CORS_ORIGINS` (comma-separated origins, scheme+host only; no path)
+  - your GitHub Pages origin (example: `https://supernovam.github.io`)
+  - your Render API origin (example: `https://lesson-tracker-api-xxxxx.onrender.com`)
+
+Optional (advanced):
+
+- `PG_POOL_MAX`
+- `PG_CONNECTION_TIMEOUT_MS`
+
+Start command: `npm start`
+
+The API initializes the `lessons` table automatically on startup with retries (idempotent `CREATE TABLE IF NOT EXISTS`).
+
+### Frontend (GitHub Pages)
+
+Your GitHub Pages build uses the workflow in `.github/workflows/static.yml`. Configure this repo secret:
+
+- `VITE_API_BASE` = your Render API origin (example: `https://lesson-tracker-api-xxxxx.onrender.com`)
+
+This makes the production build call the Render backend instead of attempting same-origin `/lesson-tracker/api/*`.
+
+### Local development notes
+
+- Leave `VITE_API_BASE` blank to use the Vite dev proxy for `/api/*`.
+- If you want to test against the deployed backend locally, set `VITE_API_BASE` in `.env`.
