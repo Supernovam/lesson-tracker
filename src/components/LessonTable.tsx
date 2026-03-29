@@ -7,7 +7,15 @@ import { formatDisplayDate, formatDuration } from '../utils/format';
 
 type SortableColumn = 'studentName' | 'date';
 type SortDirection = 'asc' | 'desc';
-type SortState = { column: SortableColumn; direction: SortDirection } | null;
+
+/** Per-column direction; `null` means that column is not part of the active sort. */
+type ColumnSort = SortDirection | null;
+
+type MultiSortState = {
+  studentName: ColumnSort;
+  date: ColumnSort;
+  primary: SortableColumn;
+};
 
 interface LessonTableProps {
   lessons: Lesson[];
@@ -30,28 +38,53 @@ const MONTH_OPTIONS = [
   { value: '11', label: 'December' },
 ] as const;
 
-function sortLessons(
-  lessons: Lesson[],
-  column: SortableColumn,
-  direction: SortDirection
-): Lesson[] {
+function compareColumnRaw(a: Lesson, b: Lesson, column: SortableColumn): number {
+  if (column === 'studentName') {
+    return a.studentName.localeCompare(b.studentName, undefined, { sensitivity: 'base' });
+  }
+  return a.date.localeCompare(b.date);
+}
+
+function applyDirection(cmp: number, direction: SortDirection): number {
+  return direction === 'asc' ? cmp : -cmp;
+}
+
+/**
+ * Sorts by `primary` first, then the other column. If a column’s sort is `null`, that level is
+ * skipped for ordering except as a default ascending tie-break after the primary comparison.
+ */
+function sortLessons(lessons: Lesson[], state: MultiSortState): Lesson[] {
+  if (state.studentName === null && state.date === null) {
+    return lessons;
+  }
+
+  const secondary: SortableColumn =
+    state.primary === 'studentName' ? 'date' : 'studentName';
+
   return [...lessons].sort((a, b) => {
+    const primaryDir = state[state.primary];
     let cmp = 0;
 
-    if (column === 'studentName') {
-      cmp = a.studentName.localeCompare(b.studentName, undefined, { sensitivity: 'base' });
-    } else {
-      const dateCmp = a.date.localeCompare(b.date);
-      if (dateCmp !== 0) {
-        cmp = dateCmp;
-      } else {
-        // Secondary key ensures deterministic ordering for same-day lessons.
-        cmp = a.createdAt - b.createdAt;
-      }
+    if (primaryDir !== null) {
+      cmp = compareColumnRaw(a, b, state.primary);
+      cmp = applyDirection(cmp, primaryDir);
+      if (cmp !== 0) return cmp;
     }
 
-    if (cmp !== 0) return direction === 'asc' ? cmp : -cmp;
-    return direction === 'asc' ? a.id.localeCompare(b.id) : b.id.localeCompare(a.id);
+    const secondaryDir = state[secondary];
+    if (secondaryDir !== null) {
+      cmp = compareColumnRaw(a, b, secondary);
+      cmp = applyDirection(cmp, secondaryDir);
+    } else {
+      // Inactive secondary: still use that field ascending as a stable tie-break (e.g. same date → student A→Z).
+      cmp = compareColumnRaw(a, b, secondary);
+    }
+
+    if (cmp !== 0) return cmp;
+
+    const created = a.createdAt - b.createdAt;
+    if (created !== 0) return created;
+    return a.id.localeCompare(b.id);
   });
 }
 
@@ -64,7 +97,7 @@ interface SortableHeaderProps {
   column: SortableColumn;
   label: string;
   ariaSortLabel: string;
-  sort: SortState;
+  direction: ColumnSort;
   onSort: (column: SortableColumn) => void;
   icon: LucideIcon;
 }
@@ -73,12 +106,11 @@ function SortableHeader({
   column,
   label,
   ariaSortLabel,
-  sort,
+  direction,
   onSort,
   icon: Icon,
 }: SortableHeaderProps) {
-  const isActive = sort?.column === column;
-  const direction = isActive ? sort.direction : null;
+  const isActive = direction !== null;
   const ariaSort = direction === 'asc' ? 'ascending' : direction === 'desc' ? 'descending' : undefined;
 
   return (
@@ -90,7 +122,7 @@ function SortableHeader({
         aria-label={
           isActive
             ? `Sort by ${ariaSortLabel} ${direction === 'asc' ? 'descending' : 'ascending'}`
-            : `Sort by ${ariaSortLabel}`
+            : `Sort by ${ariaSortLabel} ascending`
         }
       >
         <Icon className="h-4 w-4" aria-hidden /> {label}
@@ -108,16 +140,26 @@ function SortableHeader({
   );
 }
 
+const initialMultiSort: MultiSortState = {
+  studentName: null,
+  date: null,
+  primary: 'date',
+};
+
 export function LessonTable({ lessons, onDelete }: LessonTableProps) {
-  const [sort, setSort] = useState<SortState>(null);
+  const [sort, setSort] = useState<MultiSortState>(initialMultiSort);
   const [selectedMonth, setSelectedMonth] = useState<(typeof MONTH_OPTIONS)[number]['value']>('all');
 
   const handleSort = useCallback((column: SortableColumn) => {
     setSort((prev) => {
-      if (prev?.column === column) {
-        return { column, direction: prev.direction === 'asc' ? 'desc' : 'asc' };
-      }
-      return { column, direction: 'asc' as SortDirection };
+      const current = prev[column];
+      const nextDir: SortDirection =
+        current === null ? 'asc' : current === 'asc' ? 'desc' : 'asc';
+      return {
+        ...prev,
+        [column]: nextDir,
+        primary: column,
+      };
     });
   }, []);
 
@@ -130,8 +172,7 @@ export function LessonTable({ lessons, onDelete }: LessonTableProps) {
   }, [lessons, selectedMonth]);
 
   const sortedLessons = useMemo(() => {
-    if (!sort) return filteredLessons;
-    return sortLessons(filteredLessons, sort.column, sort.direction);
+    return sortLessons(filteredLessons, sort);
   }, [filteredLessons, sort]);
 
   if (lessons.length === 0) {
@@ -179,7 +220,7 @@ export function LessonTable({ lessons, onDelete }: LessonTableProps) {
                 column="studentName"
                 label="Student"
                 ariaSortLabel="student name"
-                sort={sort}
+                direction={sort.studentName}
                 onSort={handleSort}
                 icon={User}
               />
@@ -187,7 +228,7 @@ export function LessonTable({ lessons, onDelete }: LessonTableProps) {
                 column="date"
                 label="Date"
                 ariaSortLabel="date"
-                sort={sort}
+                direction={sort.date}
                 onSort={handleSort}
                 icon={Calendar}
               />
