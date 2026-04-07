@@ -15,8 +15,6 @@ import type { Lesson } from '../types/lesson';
 import { formatDisplayDate, formatDuration } from '../utils/format';
 import { LessonExcelExporter } from '../utils/exportUtils';
 import {
-  type SortableColumn,
-  type SortDirection,
   type SortState,
   getLessonsForDisplay,
 } from '../utils/lessonTableData';
@@ -53,31 +51,6 @@ const MONTH_OPTIONS = [
   { value: '10', label: 'November' },
   { value: '11', label: 'December' },
 ] as const;
-
-function sortLessons(
-  lessons: Lesson[],
-  column: SortableColumn,
-  direction: SortDirection
-): Lesson[] {
-  return [...lessons].sort((a, b) => {
-    let cmp = 0;
-
-    if (column === 'studentName') {
-      cmp = a.studentName.localeCompare(b.studentName, undefined, { sensitivity: 'base' });
-    } else {
-      const dateCmp = a.date.localeCompare(b.date);
-      if (dateCmp !== 0) {
-        cmp = dateCmp;
-      } else {
-        // Secondary key ensures deterministic ordering for same-day lessons.
-        cmp = a.createdAt - b.createdAt;
-      }
-    }
-
-    if (cmp !== 0) return direction === 'asc' ? cmp : -cmp;
-    return direction === 'asc' ? a.id.localeCompare(b.id) : b.id.localeCompare(a.id);
-  });
-}
 
 const headerButtonClass =
   'flex items-center gap-1.5 transition hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2 rounded';
@@ -154,15 +127,21 @@ export function LessonTable({ lessons, onDelete }: LessonTableProps) {
     });
   }, []);
 
+  const activeSort = useMemo<SortState>(() => {
+    const direction = sort[sort.primary];
+    if (!direction) return null;
+    return { column: sort.primary, direction };
+  }, [sort]);
+
   const sortedLessons = useMemo(
-    () => getLessonsForDisplay(lessons, selectedMonth, sort),
-    [lessons, selectedMonth, sort]
+    () => getLessonsForDisplay(lessons, selectedMonth, activeSort),
+    [lessons, selectedMonth, activeSort]
   );
 
-  const sortedLessons = useMemo(() => {
-    if (!sort) return filteredLessons;
-    return sortLessons(filteredLessons, sort.column, sort.direction);
-  }, [filteredLessons, sort]);
+  const handleExport = useCallback(() => {
+    if (!LessonExcelExporter.hasExportableRows(lessons, selectedMonth, activeSort)) return;
+    LessonExcelExporter.downloadLessons(lessons, selectedMonth, activeSort);
+  }, [lessons, selectedMonth, activeSort]);
 
   if (lessons.length === 0) {
     return (
