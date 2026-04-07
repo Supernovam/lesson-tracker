@@ -15,11 +15,21 @@ import type { Lesson } from '../types/lesson';
 import { formatDisplayDate, formatDuration } from '../utils/format';
 import { LessonExcelExporter } from '../utils/exportUtils';
 import {
-  type SortableColumn,
-  type SortDirection,
   type SortState,
   getLessonsForDisplay,
 } from '../utils/lessonTableData';
+
+type SortableColumn = 'studentName' | 'date';
+type SortDirection = 'asc' | 'desc';
+
+/** Per-column direction; `null` means that column is not part of the active sort. */
+type ColumnSort = SortDirection | null;
+
+type MultiSortState = {
+  studentName: ColumnSort;
+  date: ColumnSort;
+  primary: SortableColumn;
+};
 
 interface LessonTableProps {
   lessons: Lesson[];
@@ -51,7 +61,7 @@ interface SortableHeaderProps {
   column: SortableColumn;
   label: string;
   ariaSortLabel: string;
-  sort: SortState;
+  direction: ColumnSort;
   onSort: (column: SortableColumn) => void;
   icon: LucideIcon;
 }
@@ -60,12 +70,11 @@ function SortableHeader({
   column,
   label,
   ariaSortLabel,
-  sort,
+  direction,
   onSort,
   icon: Icon,
 }: SortableHeaderProps) {
-  const isActive = sort?.column === column;
-  const direction = isActive ? sort.direction : null;
+  const isActive = direction !== null;
   const ariaSort = direction === 'asc' ? 'ascending' : direction === 'desc' ? 'descending' : undefined;
 
   return (
@@ -77,7 +86,7 @@ function SortableHeader({
         aria-label={
           isActive
             ? `Sort by ${ariaSortLabel} ${direction === 'asc' ? 'descending' : 'ascending'}`
-            : `Sort by ${ariaSortLabel}`
+            : `Sort by ${ariaSortLabel} ascending`
         }
       >
         <Icon className="h-4 w-4" aria-hidden /> {label}
@@ -95,27 +104,44 @@ function SortableHeader({
   );
 }
 
+const initialMultiSort: MultiSortState = {
+  studentName: null,
+  date: null,
+  primary: 'date',
+};
+
 export function LessonTable({ lessons, onDelete }: LessonTableProps) {
-  const [sort, setSort] = useState<SortState>(null);
+  const [sort, setSort] = useState<MultiSortState>(initialMultiSort);
   const [selectedMonth, setSelectedMonth] = useState<(typeof MONTH_OPTIONS)[number]['value']>('all');
 
   const handleSort = useCallback((column: SortableColumn) => {
     setSort((prev) => {
-      if (prev?.column === column) {
-        return { column, direction: prev.direction === 'asc' ? 'desc' : 'asc' };
-      }
-      return { column, direction: 'asc' as SortDirection };
+      const current = prev[column];
+      const nextDir: SortDirection =
+        current === null ? 'asc' : current === 'asc' ? 'desc' : 'asc';
+      return {
+        ...prev,
+        [column]: nextDir,
+        primary: column,
+      };
     });
   }, []);
 
+  const activeSort = useMemo<SortState>(() => {
+    const direction = sort[sort.primary];
+    if (!direction) return null;
+    return { column: sort.primary, direction };
+  }, [sort]);
+
   const sortedLessons = useMemo(
-    () => getLessonsForDisplay(lessons, selectedMonth, sort),
-    [lessons, selectedMonth, sort]
+    () => getLessonsForDisplay(lessons, selectedMonth, activeSort),
+    [lessons, selectedMonth, activeSort]
   );
 
   const handleExport = useCallback(() => {
-    LessonExcelExporter.downloadLessons(lessons, selectedMonth, sort);
-  }, [lessons, selectedMonth, sort]);
+    if (!LessonExcelExporter.hasExportableRows(lessons, selectedMonth, activeSort)) return;
+    LessonExcelExporter.downloadLessons(lessons, selectedMonth, activeSort);
+  }, [lessons, selectedMonth, activeSort]);
 
   if (lessons.length === 0) {
     return (
@@ -174,7 +200,7 @@ export function LessonTable({ lessons, onDelete }: LessonTableProps) {
                 column="studentName"
                 label="Student"
                 ariaSortLabel="student name"
-                sort={sort}
+                direction={sort.studentName}
                 onSort={handleSort}
                 icon={User}
               />
@@ -182,7 +208,7 @@ export function LessonTable({ lessons, onDelete }: LessonTableProps) {
                 column="date"
                 label="Date"
                 ariaSortLabel="date"
-                sort={sort}
+                direction={sort.date}
                 onSort={handleSort}
                 icon={Calendar}
               />

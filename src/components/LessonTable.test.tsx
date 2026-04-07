@@ -106,6 +106,25 @@ describe('LessonTable', () => {
     expect(rows[2].textContent).toContain('10.01.2025');
   });
 
+  it('preserves Student sort state when Date is activated (both columns stay active)', () => {
+    const lessons: Lesson[] = [
+      createLesson({ id: '1', studentName: 'Charlie', date: '2025-03-15' }),
+      createLesson({ id: '2', studentName: 'Alice', date: '2025-01-10' }),
+    ];
+
+    render(<LessonTable lessons={lessons} onDelete={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /sort by student name ascending/i }));
+    const studentButton = screen.getByRole('button', { name: /sort by student name descending/i });
+    const studentTh = studentButton.closest('th');
+    expect(studentTh?.getAttribute('aria-sort')).toBe('ascending');
+
+    fireEvent.click(screen.getByRole('button', { name: /sort by date ascending/i }));
+    expect(studentTh?.getAttribute('aria-sort')).toBe('ascending');
+    const dateTh = screen.getByRole('button', { name: /sort by date descending/i }).closest('th');
+    expect(dateTh?.getAttribute('aria-sort')).toBe('ascending');
+  });
+
   it('switches to date sort when Date is clicked after sorting by Student', () => {
     const lessons: Lesson[] = [
       createLesson({ id: '1', studentName: 'Charlie', date: '2025-03-15' }),

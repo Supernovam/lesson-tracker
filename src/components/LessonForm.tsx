@@ -2,10 +2,10 @@ import { useState, useCallback } from 'react';
 import type React from 'react';
 import { BookOpen } from 'lucide-react';
 import type { LessonFormData } from '../types/lesson';
-import { validateLessonForm } from '../utils/validation';
+import { parseDuration, validateLessonForm } from '../utils/validation';
 import { getTodayISO } from '../utils/format';
 
-const DEFAULT_DURATION = 120;
+const DEFAULT_DURATION = 60;
 
 interface LessonFormProps {
   onSubmit: (data: LessonFormData) => void | Promise<void>;
@@ -20,6 +20,7 @@ const initialFormState: LessonFormData = {
 
 export function LessonForm({ onSubmit }: LessonFormProps) {
   const [formData, setFormData] = useState<LessonFormData>(initialFormState);
+  const [durationInput, setDurationInput] = useState(() => String(DEFAULT_DURATION));
   const [errors, setErrors] = useState<Partial<Record<keyof LessonFormData, string>>>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -44,6 +45,7 @@ export function LessonForm({ onSubmit }: LessonFormProps) {
           date: getTodayISO(),
           duration: DEFAULT_DURATION,
         });
+        setDurationInput(String(DEFAULT_DURATION));
       } catch (err) {
         if (err instanceof Error) setSubmitError(err.message);
         else setSubmitError('Failed to save lesson. Please try again.');
@@ -56,14 +58,35 @@ export function LessonForm({ onSubmit }: LessonFormProps) {
 
   const handleDurationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const raw = e.target.value;
+    setDurationInput(raw);
     if (raw === '') {
-      updateField('duration', DEFAULT_DURATION);
+      updateField('duration', 0);
       return;
     }
     const num = parseInt(raw, 10);
-    if (!Number.isNaN(num) && num >= 0) {
-      updateField('duration', num > 0 ? num : DEFAULT_DURATION);
+    if (Number.isNaN(num)) {
+      updateField('duration', 0);
+      return;
     }
+    updateField('duration', num);
+  };
+
+  const handleDurationBlur = () => {
+    const raw = durationInput.trim();
+    if (raw === '') {
+      setDurationInput(String(DEFAULT_DURATION));
+      updateField('duration', DEFAULT_DURATION);
+      return;
+    }
+    const parsed = Number(raw);
+    if (!Number.isFinite(parsed)) {
+      setDurationInput(String(DEFAULT_DURATION));
+      updateField('duration', DEFAULT_DURATION);
+      return;
+    }
+    const clamped = parseDuration(parsed);
+    setDurationInput(String(clamped));
+    updateField('duration', clamped);
   };
 
   return (
@@ -132,8 +155,9 @@ export function LessonForm({ onSubmit }: LessonFormProps) {
             min={1}
             max={9999}
             step={1}
-            value={formData.duration}
+            value={durationInput}
             onChange={handleDurationChange}
+            onBlur={handleDurationBlur}
             className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-800 focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
             aria-invalid={Boolean(errors.duration)}
             aria-describedby={errors.duration ? 'lesson-duration-error' : undefined}
