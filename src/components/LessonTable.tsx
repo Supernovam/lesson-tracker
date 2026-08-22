@@ -14,11 +14,11 @@ import type { LucideIcon } from 'lucide-react';
 import type { Lesson } from '../types/lesson';
 import { formatDisplayDate, formatDuration } from '../utils/format';
 import { LessonExcelExporter } from '../utils/exportUtils';
-import {
-  type SortState,
-  getLessonsForDisplay,
-} from '../utils/lessonTableData';
+import { type SortState, getLessonsForDisplay } from '../utils/lessonTableData';
 
+type SortableColumn = 'studentName' | 'date';
+type SortDirection = 'asc' | 'desc';
+/** Per-column direction; `null` means that column is not part of the active sort. */
 type ColumnSort = SortDirection | null;
 
 type MultiSortState = {
@@ -106,10 +106,19 @@ const initialMultiSort: MultiSortState = {
   primary: 'date',
 };
 
+function columnDirection(sort: MultiSortState, column: SortableColumn): ColumnSort {
+  return column === 'studentName' ? sort.studentName : sort.date;
+}
+
 function toSortState(sort: MultiSortState): SortState {
-  const direction = sort[sort.primary];
+  const direction = columnDirection(sort, sort.primary);
   if (!direction) return null;
   return { column: sort.primary, direction };
+}
+
+function nextDirection(current: ColumnSort): SortDirection {
+  if (current === null) return 'asc';
+  return current === 'asc' ? 'desc' : 'asc';
 }
 
 export function LessonTable({ lessons, onDelete }: LessonTableProps) {
@@ -117,16 +126,11 @@ export function LessonTable({ lessons, onDelete }: LessonTableProps) {
   const [selectedMonth, setSelectedMonth] = useState<(typeof MONTH_OPTIONS)[number]['value']>('all');
 
   const handleSort = useCallback((column: SortableColumn) => {
-    setSort((prev) => {
-      const current = prev[column];
-      const nextDir: SortDirection =
-        current === null ? 'asc' : current === 'asc' ? 'desc' : 'asc';
-      return {
-        ...prev,
-        [column]: nextDir,
-        primary: column,
-      };
-    });
+    setSort((prev) => ({
+      ...prev,
+      [column]: nextDirection(columnDirection(prev, column)),
+      primary: column,
+    }));
   }, []);
 
   const activeSort = useMemo<SortState>(() => {
