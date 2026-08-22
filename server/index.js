@@ -1,9 +1,29 @@
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import express from 'express';
+import cookieSession from 'cookie-session';
 import { Pool, types } from 'pg';
 import dotenv from 'dotenv';
 import crypto from 'crypto';
+import {
+  buildGoogleAuthUrl,
+  createPkcePair,
+  exchangeGoogleCode,
+  fetchGoogleUser,
+  isEmailAllowed,
+  parseEmailList,
+  requireAuth,
+  toSessionUser,
+} from './auth.js';
+import {
+  assertFrontendCorsAllowList,
+  assertHttpsUrl,
+  resolveGoogleRedirectUri,
+  withTrailingSlash,
+} from './urls.js';
 
-dotenv.config();
+const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+dotenv.config({ path: path.join(projectRoot, '.env') });
 
 const isProduction = process.env.NODE_ENV === 'production';
 
@@ -11,6 +31,7 @@ const isProduction = process.env.NODE_ENV === 'production';
 types.setTypeParser(20, (val) => Number(val)); // 20 = int8
 
 const app = express();
+if (isProduction) app.set('trust proxy', 1);
 app.use(express.json());
 
 function parseCsv(value) {
@@ -20,19 +41,28 @@ function parseCsv(value) {
     .filter(Boolean);
 }
 
+function requiredEnv(name) {
+  const v = process.env[name];
+  if (!v) throw new Error(`Missing required env var: ${name}`);
+  return v;
+}
+
+function optionalEnv(name, fallback = '') {
+  const v = process.env[name];
+  return v && v.trim() ? v.trim() : fallback;
+}
+
 // GitHub Pages serves the frontend as a different origin than the API we deploy on Render.
 // Without CORS headers, browsers will block fetch() requests.
 //
 // For production, set `CORS_ORIGINS` explicitly (comma-separated origins; scheme+host only).
 // Example: https://supernovam.github.io,https://lesson-tracker-api.onrender.com
-const corsAllowAll = (process.env.CORS_ALLOW_ALL ?? '').trim().toLowerCase() === 'true';
 const defaultDevCorsOrigins = [
   'http://localhost:5173',
   'http://127.0.0.1:5173',
   'http://localhost:3000',
 ];
 const corsOrigins = (() => {
-  if (corsAllowAll) return ['*'];
   const envOrigins = parseCsv(process.env.CORS_ORIGINS ?? process.env.CORS_ORIGIN ?? '');
   if (envOrigins.length > 0) return envOrigins;
   if (isProduction) return [];
@@ -44,16 +74,13 @@ app.use((req, res, next) => {
   // No `Origin` header => not a browser CORS request.
   if (!origin) return next();
 
-  const originAllowed = corsOrigins.includes('*') || corsOrigins.includes(origin);
-  if (!originAllowed) {
-    if (req.method === 'OPTIONS') {
-      return res.status(403).send('CORS origin not allowed');
-    }
-    return next();
+  if (!corsOrigins.includes(origin)) {
+    return res.status(403).send('CORS origin not allowed');
   }
 
   res.setHeader('Access-Control-Allow-Origin', origin);
   res.setHeader('Vary', 'Origin');
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,DELETE,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   res.setHeader('Access-Control-Max-Age', '86400');
@@ -62,15 +89,79 @@ app.use((req, res, next) => {
   return next();
 });
 
-function requiredEnv(name) {
-  const v = process.env[name];
-  if (!v) throw new Error(`Missing required env var: ${name}`);
-  return v;
-}
-
 const PORT = process.env.PORT ? Number(process.env.PORT) : 3001;
 if (!Number.isFinite(PORT)) throw new Error('PORT must be a number');
 const DATABASE_URL = requiredEnv('DATABASE_URL');
+const SESSION_SECRET = requiredEnv('SESSION_SECRET');
+const GOOGLE_CLIENT_ID = optionalEnv('GOOGLE_CLIENT_ID');
+const GOOGLE_CLIENT_SECRET = optionalEnv('GOOGLE_CLIENT_SECRET');
+const ALLOWED_EMAILS = parseEmailList(process.env.ALLOWED_EMAILS ?? '');
+const googleOAuthReady = Boolean(GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET);
+
+if (isProduction) {
+  if (!GOOGLE_CLIENT_ID) throw new Error('Missing required env var: GOOGLE_CLIENT_ID');
+  if (!GOOGLE_CLIENT_SECRET) throw new Error('Missing required env var: GOOGLE_CLIENT_SECRET');
+  if (ALLOWED_EMAILS.length === 0) {
+    throw new Error('ALLOWED_EMAILS must include at least one email');
+  }
+  if (SESSION_SECRET.length < 16) {
+    throw new Error('SESSION_SECRET must be at least 16 characters in production');
+  }
+} else if (!googleOAuthReady) {
+  console.warn(
+    '[lesson-tracker] Google OAuth is incomplete: set GOOGLE_CLIENT_SECRET (and GOOGLE_CLIENT_ID) in .env to enable sign-in. The API will still start.'
+  );
+}
+
+const defaultDevFrontendUrl = 'http://localhost:5173/lesson-tracker/';
+const defaultDevRedirectUri = 'http://localhost:5173/auth/google/callback';
+const FRONTEND_URL = withTrailingSlash(
+  optionalEnv('FRONTEND_URL', isProduction ? '' : defaultDevFrontendUrl)
+);
+const GOOGLE_REDIRECT_URI = resolveGoogleRedirectUri({
+  explicit: optionalEnv('GOOGLE_REDIRECT_URI'),
+  renderExternalUrl: optionalEnv('RENDER_EXTERNAL_URL'),
+  isProduction,
+  defaultDev: defaultDevRedirectUri,
+});
+
+if (isProduction && !FRONTEND_URL) {
+  throw new Error('Missing required env var: FRONTEND_URL');
+}
+if (isProduction && !GOOGLE_REDIRECT_URI) {
+  throw new Error(
+    'Missing GOOGLE_REDIRECT_URI (or RENDER_EXTERNAL_URL, which Render sets automatically)'
+  );
+}
+if (isProduction) {
+  assertHttpsUrl('FRONTEND_URL', FRONTEND_URL);
+  assertHttpsUrl('GOOGLE_REDIRECT_URI', GOOGLE_REDIRECT_URI);
+  if (corsOrigins.length === 0) {
+    throw new Error(
+      'Missing required env var: CORS_ORIGINS (include your GitHub Pages origin, e.g. https://supernovam.github.io)'
+    );
+  }
+  assertFrontendCorsAllowList(FRONTEND_URL, corsOrigins);
+}
+
+function frontendRedirect(pathQuery) {
+  const base = FRONTEND_URL.endsWith('/') ? FRONTEND_URL : `${FRONTEND_URL}/`;
+  return new URL(pathQuery, base).toString();
+}
+
+app.use(
+  cookieSession({
+    name: 'lt.sid',
+    keys: [SESSION_SECRET],
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+    httpOnly: true,
+    path: '/',
+    // GitHub Pages and Render are different sites, so the API cookie must be
+    // sent on cross-site fetch() from the SPA (credentials: 'include').
+    sameSite: isProduction ? 'none' : 'lax',
+    secure: isProduction,
+  })
+);
 
 const databaseUrlWantsSsl = /sslmode=require/i.test(DATABASE_URL);
 const shouldUseSsl = isProduction || databaseUrlWantsSsl;
@@ -156,11 +247,15 @@ process.on('SIGINT', async () => {
   }
 });
 
-if (isProduction && !corsAllowAll && corsOrigins.length === 0) {
-  console.warn(
-    '[lesson-tracker] CORS_ORIGINS is not set; browser requests from GitHub Pages will be blocked in production.'
+if (isProduction) {
+  console.log(
+    `[lesson-tracker] OAuth callback ${GOOGLE_REDIRECT_URI}; frontend ${FRONTEND_URL}; CORS ${corsOrigins.join(',')}`
   );
 }
+
+app.get('/', (_req, res) => {
+  res.json({ ok: true, service: 'lesson-tracker-api' });
+});
 
 app.get('/api/health', (_req, res) => {
   if (!dbReady) {
@@ -174,7 +269,94 @@ app.get('/api/health', (_req, res) => {
   res.json({ ok: true, dbReady });
 });
 
-app.get('/api/lessons', async (_req, res) => {
+function googleOAuthUnavailable(res) {
+  return res.status(503).type('html').send(`
+    <!doctype html>
+    <meta charset="utf-8" />
+    <title>Google sign-in is not configured</title>
+    <p>Set <code>GOOGLE_CLIENT_SECRET</code> (and <code>GOOGLE_CLIENT_ID</code>) in <code>.env</code>, then restart the API.</p>
+    <p>Create a Web application OAuth client in Google Cloud Console and paste the client secret. Local redirect URI: <code>http://localhost:5173/auth/google/callback</code>.</p>
+  `);
+}
+
+app.get('/auth/google', (req, res) => {
+  if (!googleOAuthReady) return googleOAuthUnavailable(res);
+
+  const state = crypto.randomBytes(24).toString('hex');
+  const { verifier, challenge } = createPkcePair();
+  req.session.oauth = { state, verifier };
+
+  const url = buildGoogleAuthUrl({
+    clientId: GOOGLE_CLIENT_ID,
+    redirectUri: GOOGLE_REDIRECT_URI,
+    state,
+    codeChallenge: challenge,
+  });
+  res.redirect(url);
+});
+
+app.get('/auth/google/callback', async (req, res) => {
+  if (!googleOAuthReady) return googleOAuthUnavailable(res);
+
+  const oauth = req.session?.oauth;
+  req.session.oauth = undefined;
+
+  const errorParam = typeof req.query.error === 'string' ? req.query.error : '';
+  if (errorParam) {
+    return res.redirect(frontendRedirect('?auth=error'));
+  }
+
+  const code = typeof req.query.code === 'string' ? req.query.code : '';
+  const state = typeof req.query.state === 'string' ? req.query.state : '';
+  if (!code || !oauth?.state || !oauth?.verifier || state !== oauth.state) {
+    return res.redirect(frontendRedirect('?auth=error'));
+  }
+
+  try {
+    const tokens = await exchangeGoogleCode({
+      code,
+      clientId: GOOGLE_CLIENT_ID,
+      clientSecret: GOOGLE_CLIENT_SECRET,
+      redirectUri: GOOGLE_REDIRECT_URI,
+      codeVerifier: oauth.verifier,
+    });
+    const profile = await fetchGoogleUser(tokens.access_token);
+    const user = toSessionUser(profile);
+
+    if (!user.email || !user.emailVerified || !isEmailAllowed(user.email, ALLOWED_EMAILS)) {
+      req.session.user = undefined;
+      return res.redirect(frontendRedirect('?auth=denied'));
+    }
+
+    req.session.user = {
+      email: user.email,
+      name: user.name,
+      picture: user.picture,
+    };
+    return res.redirect(303, FRONTEND_URL);
+  } catch (err) {
+    console.error('[lesson-tracker] Google OAuth callback failed:', err);
+    req.session.user = undefined;
+    return res.redirect(frontendRedirect('?auth=error'));
+  }
+});
+
+app.get('/auth/me', (req, res) => {
+  const user = req.session?.user;
+  if (!user?.email) return res.status(401).json({ error: 'unauthorized' });
+  res.json({
+    email: user.email,
+    name: user.name || '',
+    picture: user.picture || '',
+  });
+});
+
+app.post('/auth/logout', (req, res) => {
+  req.session = null;
+  res.status(204).end();
+});
+
+app.get('/api/lessons', requireAuth, async (_req, res) => {
   if (!dbReady) return res.status(503).json({ ok: false, error: 'db not ready' });
   try {
     const { rows } = await pool.query(`
@@ -196,7 +378,7 @@ app.get('/api/lessons', async (_req, res) => {
   }
 });
 
-app.post('/api/lessons', async (req, res) => {
+app.post('/api/lessons', requireAuth, async (req, res) => {
   if (!dbReady) return res.status(503).json({ ok: false, error: 'db not ready' });
   const body = req.body ?? {};
   const studentName = typeof body.studentName === 'string' ? body.studentName.trim() : '';
@@ -241,7 +423,7 @@ app.post('/api/lessons', async (req, res) => {
   }
 });
 
-app.delete('/api/lessons/:id', async (req, res) => {
+app.delete('/api/lessons/:id', requireAuth, async (req, res) => {
   if (!dbReady) return res.status(503).json({ ok: false, error: 'db not ready' });
   const { id } = req.params;
   if (!id) return res.status(400).json({ error: 'id is required' });
@@ -265,4 +447,3 @@ ensureSchemaWithRetries()
     console.error('[lesson-tracker] DB init failed; API will still start:', err);
     startServer();
   });
-

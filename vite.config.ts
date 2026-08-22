@@ -12,7 +12,8 @@ export default defineConfig({
   server: {
     // Route API requests from the React app to the local Express server.
     proxy: {
-      '/api': devApiTarget,
+      '/api': { target: devApiTarget, changeOrigin: true },
+      '/auth': { target: devApiTarget, changeOrigin: true },
     },
   },
   test: {

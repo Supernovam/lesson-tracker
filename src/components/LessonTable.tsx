@@ -21,10 +21,6 @@ import {
   getLessonsForDisplay,
 } from '../utils/lessonTableData';
 
-type SortableColumn = 'studentName' | 'date';
-type SortDirection = 'asc' | 'desc';
-
-/** Per-column direction; `null` means that column is not part of the active sort. */
 type ColumnSort = SortDirection | null;
 
 type MultiSortState = {
@@ -53,31 +49,6 @@ const MONTH_OPTIONS = [
   { value: '10', label: 'November' },
   { value: '11', label: 'December' },
 ] as const;
-
-function sortLessons(
-  lessons: Lesson[],
-  column: SortableColumn,
-  direction: SortDirection
-): Lesson[] {
-  return [...lessons].sort((a, b) => {
-    let cmp = 0;
-
-    if (column === 'studentName') {
-      cmp = a.studentName.localeCompare(b.studentName, undefined, { sensitivity: 'base' });
-    } else {
-      const dateCmp = a.date.localeCompare(b.date);
-      if (dateCmp !== 0) {
-        cmp = dateCmp;
-      } else {
-        // Secondary key ensures deterministic ordering for same-day lessons.
-        cmp = a.createdAt - b.createdAt;
-      }
-    }
-
-    if (cmp !== 0) return direction === 'asc' ? cmp : -cmp;
-    return direction === 'asc' ? a.id.localeCompare(b.id) : b.id.localeCompare(a.id);
-  });
-}
 
 const headerButtonClass =
   'flex items-center gap-1.5 transition hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2 rounded';
@@ -137,6 +108,12 @@ const initialMultiSort: MultiSortState = {
   primary: 'date',
 };
 
+function toSortState(sort: MultiSortState): SortState {
+  const direction = sort[sort.primary];
+  if (!direction) return null;
+  return { column: sort.primary, direction };
+}
+
 export function LessonTable({ lessons, onDelete }: LessonTableProps) {
   const [sort, setSort] = useState<MultiSortState>(initialMultiSort);
   const [selectedMonth, setSelectedMonth] = useState<(typeof MONTH_OPTIONS)[number]['value']>('all');
@@ -154,15 +131,15 @@ export function LessonTable({ lessons, onDelete }: LessonTableProps) {
     });
   }, []);
 
+  const displaySort = toSortState(sort);
   const sortedLessons = useMemo(
-    () => getLessonsForDisplay(lessons, selectedMonth, sort),
-    [lessons, selectedMonth, sort]
+    () => getLessonsForDisplay(lessons, selectedMonth, displaySort),
+    [lessons, selectedMonth, displaySort]
   );
 
-  const sortedLessons = useMemo(() => {
-    if (!sort) return filteredLessons;
-    return sortLessons(filteredLessons, sort.column, sort.direction);
-  }, [filteredLessons, sort]);
+  const handleExport = useCallback(() => {
+    LessonExcelExporter.downloadLessons(lessons, selectedMonth, displaySort);
+  }, [lessons, selectedMonth, displaySort]);
 
   if (lessons.length === 0) {
     return (
