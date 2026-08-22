@@ -15,8 +15,6 @@ import type { Lesson } from '../types/lesson';
 import { formatDisplayDate, formatDuration } from '../utils/format';
 import { LessonExcelExporter } from '../utils/exportUtils';
 import {
-  type SortableColumn,
-  type SortDirection,
   type SortState,
   getLessonsForDisplay,
 } from '../utils/lessonTableData';
@@ -131,15 +129,21 @@ export function LessonTable({ lessons, onDelete }: LessonTableProps) {
     });
   }, []);
 
-  const displaySort = toSortState(sort);
+  const activeSort = useMemo<SortState>(() => {
+    const direction = sort[sort.primary];
+    if (!direction) return null;
+    return { column: sort.primary, direction };
+  }, [sort]);
+
   const sortedLessons = useMemo(
-    () => getLessonsForDisplay(lessons, selectedMonth, displaySort),
-    [lessons, selectedMonth, displaySort]
+    () => getLessonsForDisplay(lessons, selectedMonth, activeSort),
+    [lessons, selectedMonth, activeSort]
   );
 
   const handleExport = useCallback(() => {
-    LessonExcelExporter.downloadLessons(lessons, selectedMonth, displaySort);
-  }, [lessons, selectedMonth, displaySort]);
+    if (!LessonExcelExporter.hasExportableRows(lessons, selectedMonth, activeSort)) return;
+    LessonExcelExporter.downloadLessons(lessons, selectedMonth, activeSort);
+  }, [lessons, selectedMonth, activeSort]);
 
   if (lessons.length === 0) {
     return (
