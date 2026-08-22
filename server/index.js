@@ -224,8 +224,11 @@ async function ensureSchemaWithRetries() {
 }
 
 function startServer() {
-  app.listen(PORT, () => {
-    console.log(`[lesson-tracker] API listening on port ${PORT}${dbReady ? '' : ' (db not ready yet)'}`);
+  // Bind IPv4 explicitly so Render's health checker can reach the process.
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(
+      `[lesson-tracker] API listening on 0.0.0.0:${PORT}${dbReady ? '' : ' (db not ready yet)'}`
+    );
   });
 }
 
@@ -258,15 +261,15 @@ app.get('/', (_req, res) => {
 });
 
 app.get('/api/health', (_req, res) => {
-  if (!dbReady) {
-    res.status(503).json({
-      ok: false,
-      dbReady,
-      error: dbInitError ? String(dbInitError.message || dbInitError) : 'db not ready',
-    });
-    return;
-  }
-  res.json({ ok: true, dbReady });
+  // Always 200 so Render liveness checks pass even while DB is still connecting.
+  // Lesson routes still return 503 when !dbReady.
+  res.status(200).json({
+    ok: true,
+    dbReady,
+    ...(dbInitError
+      ? { error: String(dbInitError.message || dbInitError) }
+      : {}),
+  });
 });
 
 function googleOAuthUnavailable(res) {
@@ -437,13 +440,15 @@ app.delete('/api/lessons/:id', requireAuth, async (req, res) => {
   }
 });
 
+// Accept traffic immediately so Render health checks can succeed while DB connects.
+startServer();
+
 ensureSchemaWithRetries()
   .then(() => {
     dbReady = true;
-    startServer();
+    console.log('[lesson-tracker] DB ready');
   })
   .catch((err) => {
     dbInitError = err;
-    console.error('[lesson-tracker] DB init failed; API will still start:', err);
-    startServer();
+    console.error('[lesson-tracker] DB init failed; API will still serve non-DB routes:', err);
   });
