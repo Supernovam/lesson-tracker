@@ -16,12 +16,16 @@ A minimal MVP for logging student lessons and viewing them in a chronological li
 - **Validation**: required name and date, duration must be a positive integer (1–9999)
 - **Lesson history**: table of all lessons, ordered by date (oldest first), with delete action
 - **Persistence**: all entries saved in Neon Postgres
+- **Sign-in**: Google OAuth with an email allow-list and HTTP-only cookie sessions
 
 ## Setup
 
 ```bash
 npm install
+cp .env.example .env
 ```
+
+Fill in `DATABASE_URL`, `SESSION_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and `ALLOWED_EMAILS`. See **Google OAuth** below.
 
 ## Scripts
 
@@ -35,23 +39,30 @@ npm install
 
 ## Project structure
 
-- `src/components/` – `LessonForm`, `LessonTable`
-- `src/hooks/` – `useLessonStorage` (API read/write and in-memory state)
+- `src/components/` – `LessonForm`, `LessonTable`, `LoginScreen`
+- `src/hooks/` – `useLessonStorage` (API read/write and in-memory state), `useAuth`
 - `src/types/` – `Lesson`, `LessonFormData`, validation result types
 - `src/utils/` – `validation.ts`, `format.ts` (and their tests)
 
-## Production Deployment (Neon + Render + GitHub Pages)
+## Design
 
-Optional (advanced):
+Clean, minimal UI: generous spacing, light borders, Inter font, and a responsive layout so the form and table work on small and large screens.
 
-- `PG_POOL_MAX`
-- `PG_CONNECTION_TIMEOUT_MS`
+## Google OAuth (local)
 
-Start command: `npm start`
+Create an OAuth **Web application** client in [Google Auth Platform](https://console.cloud.google.com/auth/clients).
 
-The API initializes the `lessons` table automatically on startup with retries (idempotent `CREATE TABLE IF NOT EXISTS`).
+Authorized JavaScript origins (local):
+
+- `http://localhost:5173`
+
+Authorized redirect URIs (local):
+
+- `http://localhost:5173/auth/google/callback`
+
+Copy Client ID and Client secret into `.env`. Only Google accounts listed in `ALLOWED_EMAILS` can sign in after Google succeeds.
 
 ### Local development notes
 
-- Leave `VITE_API_BASE` blank to use the Vite dev proxy for `/api/*`.
+- Leave `VITE_API_BASE` blank to use the Vite dev proxy for `/api/*` and `/auth/*`.
 - If you want to test against the deployed backend locally, set `VITE_API_BASE` in `.env`.

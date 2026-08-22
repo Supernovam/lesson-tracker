@@ -1,31 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { Lesson, LessonFormData } from '../types/lesson';
-
-function joinUrl(base: string, path: string) {
-  const b = base.replace(/\/+$/, '');
-  const p = path.replace(/^\/+/, '');
-  return b ? `${b}/${p}` : `/${p}`;
-}
-
-// In dev we rely on Vite's dev-server proxy (`server.proxy`) to forward `/api/*`
-// to the local Express API.
-const apiBaseFromEnv = (import.meta.env.VITE_API_BASE ?? '').trim();
-const API_BASE = (() => {
-  if (apiBaseFromEnv) return apiBaseFromEnv;
-  if (import.meta.env.DEV) return '';
-
-  const baseUrl = (import.meta.env.BASE_URL ?? '').trim();
-  if (baseUrl) {
-    console.warn(
-      '[lesson-tracker] VITE_API_BASE is not set; falling back to same-origin API calls. ' +
-        'Set VITE_API_BASE at build time to use the Render backend.'
-    );
-  }
-  return baseUrl;
-})();
+import { apiFetch } from '../api/config';
 
 async function fetchLessons(signal?: AbortSignal): Promise<Lesson[]> {
-  const res = await fetch(joinUrl(API_BASE, '/api/lessons'), { signal });
+  const res = await apiFetch('/api/lessons', { signal });
   if (!res.ok) {
     throw new Error(`Failed to load lessons: ${res.status} ${res.statusText}`);
   }
@@ -74,9 +52,8 @@ export function useLessonStorage() {
     };
 
     // Update state only after the API confirms the insert.
-    const res = await fetch(joinUrl(API_BASE, '/api/lessons'), {
+    const res = await apiFetch('/api/lessons', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
 
@@ -98,7 +75,7 @@ export function useLessonStorage() {
   }, []);
 
   const deleteLesson = useCallback((id: string) => {
-    fetch(joinUrl(API_BASE, `/api/lessons/${encodeURIComponent(id)}`), {
+    apiFetch(`/api/lessons/${encodeURIComponent(id)}`, {
       method: 'DELETE',
     })
       .then((res) => {

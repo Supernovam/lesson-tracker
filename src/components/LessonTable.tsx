@@ -19,10 +19,6 @@ import {
   getLessonsForDisplay,
 } from '../utils/lessonTableData';
 
-type SortableColumn = 'studentName' | 'date';
-type SortDirection = 'asc' | 'desc';
-
-/** Per-column direction; `null` means that column is not part of the active sort. */
 type ColumnSort = SortDirection | null;
 
 type MultiSortState = {
@@ -109,6 +105,12 @@ const initialMultiSort: MultiSortState = {
   date: null,
   primary: 'date',
 };
+
+function toSortState(sort: MultiSortState): SortState {
+  const direction = sort[sort.primary];
+  if (!direction) return null;
+  return { column: sort.primary, direction };
+}
 
 export function LessonTable({ lessons, onDelete }: LessonTableProps) {
   const [sort, setSort] = useState<MultiSortState>(initialMultiSort);
