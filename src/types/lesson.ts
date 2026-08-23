@@ -5,6 +5,9 @@ export interface Lesson {
   duration: number;
   comment: string;
   createdAt: number;
+  lessonTypeId: string | null;
+  lessonTypeName: string | null;
+  calculatedPrice: number | null;
 }
 
 export interface LessonFormData {
@@ -12,6 +15,7 @@ export interface LessonFormData {
   date: string;
   duration: number;
   comment: string;
+  lessonTypeId: string;
 }
 
 export interface LessonValidationResult {

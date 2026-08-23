@@ -1,26 +1,29 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import type React from 'react';
 import { BookOpen } from 'lucide-react';
 import type { LessonFormData } from '../types/lesson';
+import type { LessonType } from '../types/lessonType';
 import { parseDuration, validateLessonForm } from '../utils/validation';
-import { getTodayISO } from '../utils/format';
-
-const DEFAULT_DURATION = 60;
+import { formatDuration, formatPrice, getTodayISO } from '../utils/format';
+import { calculateSessionPrice } from '../utils/pricing';
 
 interface LessonFormProps {
+  lessonTypes: LessonType[];
   onSubmit: (data: LessonFormData) => void | Promise<void>;
 }
 
+/** `duration: 0` means "not set yet"; the chosen lesson type supplies the real value. */
 const initialFormState: LessonFormData = {
   studentName: '',
   date: getTodayISO(),
-  duration: DEFAULT_DURATION,
+  duration: 0,
   comment: '',
+  lessonTypeId: '',
 };
 
-export function LessonForm({ onSubmit }: LessonFormProps) {
+export function LessonForm({ lessonTypes, onSubmit }: LessonFormProps) {
   const [formData, setFormData] = useState<LessonFormData>(initialFormState);
-  const [durationInput, setDurationInput] = useState(() => String(DEFAULT_DURATION));
+  const [durationInput, setDurationInput] = useState('');
   const [errors, setErrors] = useState<Partial<Record<keyof LessonFormData, string>>>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -40,12 +43,14 @@ export function LessonForm({ onSubmit }: LessonFormProps) {
       setIsSubmitting(true);
       try {
         await onSubmit(formData);
+        const retainedType = lessonTypes.find((type) => type.id === formData.lessonTypeId);
         setFormData({
           ...initialFormState,
           date: getTodayISO(),
-          duration: DEFAULT_DURATION,
+          duration: retainedType?.baseDurationMinutes ?? 0,
+          lessonTypeId: formData.lessonTypeId,
         });
-        setDurationInput(String(DEFAULT_DURATION));
+        setDurationInput(retainedType ? String(retainedType.baseDurationMinutes) : '');
       } catch (err) {
         if (err instanceof Error) setSubmitError(err.message);
         else setSubmitError('Failed to save lesson. Please try again.');
@@ -53,8 +58,10 @@ export function LessonForm({ onSubmit }: LessonFormProps) {
         setIsSubmitting(false);
       }
     },
-    [formData, onSubmit]
+    [formData, lessonTypes, onSubmit]
   );
+
+  const selectedType = lessonTypes.find((type) => type.id === formData.lessonTypeId) ?? null;
 
   const handleDurationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const raw = e.target.value;
@@ -73,20 +80,37 @@ export function LessonForm({ onSubmit }: LessonFormProps) {
 
   const handleDurationBlur = () => {
     const raw = durationInput.trim();
-    if (raw === '') {
-      setDurationInput(String(DEFAULT_DURATION));
-      updateField('duration', DEFAULT_DURATION);
-      return;
-    }
-    const parsed = Number(raw);
+    // `Number('')` is 0, which would clamp up to 1, so treat blank as unparseable.
+    const parsed = raw === '' ? Number.NaN : Number(raw);
+
     if (!Number.isFinite(parsed)) {
-      setDurationInput(String(DEFAULT_DURATION));
-      updateField('duration', DEFAULT_DURATION);
+      setDurationInput(selectedType ? String(selectedType.baseDurationMinutes) : '');
+      updateField('duration', selectedType?.baseDurationMinutes ?? 0);
       return;
     }
+
     const clamped = parseDuration(parsed);
     setDurationInput(String(clamped));
     updateField('duration', clamped);
+  };
+
+  const pricePreview = useMemo(() => {
+    if (!selectedType || !Number.isInteger(formData.duration) || formData.duration < 1) {
+      return null;
+    }
+    return calculateSessionPrice(
+      formData.duration,
+      selectedType.baseDurationMinutes,
+      selectedType.basePrice
+    );
+  }, [formData.duration, selectedType]);
+
+  const handleLessonTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const nextId = e.target.value;
+    const nextType = lessonTypes.find((type) => type.id === nextId) ?? null;
+    updateField('lessonTypeId', nextId);
+    setDurationInput(nextType ? String(nextType.baseDurationMinutes) : '');
+    updateField('duration', nextType?.baseDurationMinutes ?? 0);
   };
 
   return (
@@ -121,6 +145,35 @@ export function LessonForm({ onSubmit }: LessonFormProps) {
           {errors.studentName && (
             <p id="student-name-error" className="mt-1 text-sm text-red-600" role="alert">
               {errors.studentName}
+            </p>
+          )}
+        </div>
+
+        <div className="sm:col-span-2">
+          <label htmlFor="lesson-type" className="mb-1.5 block text-sm font-medium text-slate-700">
+            Lesson type
+          </label>
+          <select
+            id="lesson-type"
+            value={formData.lessonTypeId}
+            onChange={handleLessonTypeChange}
+            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-800 focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+            aria-invalid={Boolean(errors.lessonTypeId)}
+            aria-describedby={errors.lessonTypeId ? 'lesson-type-error' : undefined}
+            disabled={lessonTypes.length === 0}
+          >
+            <option value="">
+              {lessonTypes.length === 0 ? 'Add a lesson type first' : 'Select a lesson type'}
+            </option>
+            {lessonTypes.map((type) => (
+              <option key={type.id} value={type.id}>
+                {type.name} ({formatPrice(type.basePrice)} / {formatDuration(type.baseDurationMinutes)})
+              </option>
+            ))}
+          </select>
+          {errors.lessonTypeId && (
+            <p id="lesson-type-error" className="mt-1 text-sm text-red-600" role="alert">
+              {errors.lessonTypeId}
             </p>
           )}
         </div>
@@ -168,6 +221,15 @@ export function LessonForm({ onSubmit }: LessonFormProps) {
             </p>
           )}
         </div>
+
+        {pricePreview != null && selectedType && (
+          <p className="sm:col-span-2 text-sm text-slate-600" aria-live="polite">
+            Estimated cost:{' '}
+            <span className="font-medium text-slate-800">{formatPrice(pricePreview)}</span>
+            {' '}({formatDuration(formData.duration)} at {formatPrice(selectedType.basePrice)} /{' '}
+            {formatDuration(selectedType.baseDurationMinutes)})
+          </p>
+        )}
 
         <div className="sm:col-span-2">
           <label htmlFor="lesson-comment" className="mb-1.5 block text-sm font-medium text-slate-700">

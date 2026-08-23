@@ -91,17 +91,19 @@ export function useLessonTypeStorage() {
     setLessonTypes((prev) => prev.map((item) => (item.id === id ? lessonType : item)));
   }, []);
 
-  const deleteLessonType = useCallback((id: string) => {
-    apiFetch(`/api/lesson-types/${encodeURIComponent(id)}`, {
+  const deleteLessonType = useCallback(async (id: string) => {
+    const res = await apiFetch(`/api/lesson-types/${encodeURIComponent(id)}`, {
       method: 'DELETE',
-    })
-      .then((res) => {
-        if (!res.ok && res.status !== 404) throw new Error(`${res.status} ${res.statusText}`);
-      })
-      .then(() => setLessonTypes((prev) => prev.filter((item) => item.id !== id)))
-      .catch((err) => {
-        console.error('Failed to delete lesson type:', err);
-      });
+    });
+    if (res.status === 404) {
+      setLessonTypes((prev) => prev.filter((item) => item.id !== id));
+      return;
+    }
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      throw errorFromResponse(text, res.status, res.statusText);
+    }
+    setLessonTypes((prev) => prev.filter((item) => item.id !== id));
   }, []);
 
   const lessonTypesByName = [...lessonTypes].sort((a, b) => a.name.localeCompare(b.name));

@@ -9,10 +9,12 @@ import {
   ChevronUp,
   ChevronsUpDown,
   Download,
+  Tags,
+  Euro,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { Lesson } from '../types/lesson';
-import { formatDisplayDate, formatDuration } from '../utils/format';
+import { formatDisplayDate, formatDuration, formatPrice } from '../utils/format';
 import { LessonExcelExporter } from '../utils/exportUtils';
 import {
   type SortState,
@@ -191,11 +193,16 @@ export function LessonTable({ lessons, onDelete }: LessonTableProps) {
       </div>
       <div className="overflow-x-auto">
         <table
-          className="w-full min-w-[600px] border-collapse text-left"
+          className="w-full min-w-[760px] border-collapse text-left"
           aria-label="Lesson history"
         >
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50/80">
+              <th scope="col" className={headerCellClass}>
+                <span className="flex items-center gap-1.5">
+                  <Tags className="h-4 w-4" aria-hidden /> Type
+                </span>
+              </th>
               <SortableHeader
                 column="studentName"
                 label="Student"
@@ -218,6 +225,11 @@ export function LessonTable({ lessons, onDelete }: LessonTableProps) {
                 </span>
               </th>
               <th scope="col" className={headerCellClass}>
+                <span className="flex items-center gap-1.5">
+                  <Euro className="h-4 w-4" aria-hidden /> Cost
+                </span>
+              </th>
+              <th scope="col" className={headerCellClass}>
                 Comment
               </th>
               <th scope="col" className="w-12 px-4 py-3">
@@ -228,7 +240,7 @@ export function LessonTable({ lessons, onDelete }: LessonTableProps) {
           <tbody>
             {sortedLessons.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-4 py-6 text-center text-slate-500">
+                <td colSpan={7} className="px-4 py-6 text-center text-slate-500">
                   No lessons found for the selected month.
                 </td>
               </tr>
@@ -238,9 +250,13 @@ export function LessonTable({ lessons, onDelete }: LessonTableProps) {
                   key={lesson.id}
                   className="border-b border-slate-100 transition hover:bg-slate-50/50 last:border-b-0"
                 >
+                  <td className="px-4 py-3 text-slate-600">{lesson.lessonTypeName || '—'}</td>
                   <td className="px-4 py-3 font-medium text-slate-800">{lesson.studentName}</td>
                   <td className="px-4 py-3 text-slate-600">{formatDisplayDate(lesson.date)}</td>
                   <td className="px-4 py-3 text-slate-600">{formatDuration(lesson.duration)}</td>
+                  <td className="px-4 py-3 text-slate-600">
+                    {lesson.calculatedPrice == null ? '—' : formatPrice(lesson.calculatedPrice)}
+                  </td>
                   <td className="max-w-[200px] px-4 py-3 text-slate-600">
                     <span className="line-clamp-2">{lesson.comment || '—'}</span>
                   </td>

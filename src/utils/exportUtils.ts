@@ -1,6 +1,6 @@
 import * as XLSX from 'xlsx';
 import type { Lesson } from '../types/lesson';
-import { formatDisplayDate, formatDuration } from './format';
+import { formatDisplayDate, formatDuration, formatPrice } from './format';
 import { getLessonsForDisplay, type SortState } from './lessonTableData';
 
 /** Month filter value → English month name (or "all-months") for export filenames. */
@@ -20,11 +20,24 @@ const EXPORT_FILENAME_MONTH: Record<string, string> = {
   '11': 'December',
 };
 
+export type LessonDisplayRow = readonly [string, string, string, string, string, string];
+
+function sumCalculatedPrices(lessons: Lesson[]): number {
+  return Math.round(lessons.reduce((sum, lesson) => sum + (lesson.calculatedPrice ?? 0), 0) * 100) / 100;
+}
+
 /**
  * Builds Excel exports that mirror the lesson table: same columns, order, filtering, and sorting.
  */
 export class LessonExcelExporter {
-  static readonly COLUMN_HEADERS = ['Student', 'Date', 'Duration', 'Comment'] as const;
+  static readonly COLUMN_HEADERS = [
+    'Lesson type',
+    'Student',
+    'Date',
+    'Duration',
+    'Cost',
+    'Comment',
+  ] as const;
 
   /**
    * Default download name: `lessons-export-<month>.xlsx` using the same month labels as the table filter.
@@ -37,11 +50,13 @@ export class LessonExcelExporter {
   /**
    * Maps internal lesson fields to the same display strings shown in the table.
    */
-  static mapLessonToDisplayRow(lesson: Lesson): readonly [string, string, string, string] {
+  static mapLessonToDisplayRow(lesson: Lesson): LessonDisplayRow {
     return [
+      lesson.lessonTypeName || '—',
       lesson.studentName,
       formatDisplayDate(lesson.date),
       formatDuration(lesson.duration),
+      lesson.calculatedPrice == null ? '—' : formatPrice(lesson.calculatedPrice),
       lesson.comment || '—',
     ];
   }
@@ -67,6 +82,23 @@ export class LessonExcelExporter {
     );
   }
 
+  static buildWorkbookRows(
+    lessons: Lesson[],
+    selectedMonth: string,
+    sort: SortState
+  ): string[][] {
+    const ordered = this.getOrderedLessonsForExport(lessons, selectedMonth, sort);
+    const dataRows = ordered.map((lesson) => [...this.mapLessonToDisplayRow(lesson)]);
+    const total = sumCalculatedPrices(ordered);
+
+    return [
+      [...this.COLUMN_HEADERS],
+      ...dataRows,
+      [],
+      ['Total', '', '', '', formatPrice(total), ''],
+    ];
+  }
+
   /**
    * Returns true when there is at least one lesson row to export (after filter + sort).
    */
@@ -80,10 +112,7 @@ export class LessonExcelExporter {
     sort: SortState,
     filename?: string
   ): void {
-    const headerRow = [...this.COLUMN_HEADERS];
-    const dataRows = this.buildDataRows(lessons, selectedMonth, sort);
-    const aoa = [headerRow, ...dataRows];
-
+    const aoa = this.buildWorkbookRows(lessons, selectedMonth, sort);
     const worksheet = XLSX.utils.aoa_to_sheet(aoa);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Lessons');
