@@ -1,7 +1,10 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { LessonTable } from './LessonTable';
 import type { Lesson } from '../types/lesson';
+
+const selectMonth = (value: string) =>
+  fireEvent.change(screen.getByLabelText(/filter lessons by month/i), { target: { value } });
 
 const createLesson = (overrides: Partial<Lesson>): Lesson => ({
   id: crypto.randomUUID(),
@@ -17,10 +20,36 @@ const createLesson = (overrides: Partial<Lesson>): Lesson => ({
 });
 
 describe('LessonTable', () => {
+  // The table opens on the current month, so tests pin "today" to January 2025.
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2025-01-15T12:00:00Z'));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('shows empty state when no lessons', () => {
     render(<LessonTable lessons={[]} onDelete={vi.fn()} />);
     expect(screen.getByRole('status', { name: /no lessons recorded/i })).toBeDefined();
     expect(screen.getByText(/no lessons yet/i)).toBeDefined();
+  });
+
+  it('opens on the current month', () => {
+    const lessons: Lesson[] = [
+      createLesson({ id: '1', studentName: 'Charlie', date: '2025-03-01' }),
+      createLesson({ id: '2', studentName: 'Alice', date: '2025-01-20' }),
+      createLesson({ id: '3', studentName: 'Bob', date: '2025-02-10' }),
+    ];
+
+    render(<LessonTable lessons={lessons} onDelete={vi.fn()} />);
+
+    expect((screen.getByLabelText(/filter lessons by month/i) as HTMLSelectElement).value).toBe('0');
+
+    const rows = screen.getAllByRole('row').slice(1);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].textContent).toContain('Alice');
   });
 
   it('renders lessons in original order by default', () => {
@@ -31,6 +60,7 @@ describe('LessonTable', () => {
     ];
 
     render(<LessonTable lessons={lessons} onDelete={vi.fn()} />);
+    selectMonth('all');
 
     const rows = screen.getAllByRole('row').slice(1);
     expect(rows).toHaveLength(3);
@@ -82,6 +112,7 @@ describe('LessonTable', () => {
     ];
 
     render(<LessonTable lessons={lessons} onDelete={vi.fn()} />);
+    selectMonth('all');
 
     fireEvent.click(screen.getByRole('button', { name: /sort by date/i }));
 
@@ -99,6 +130,7 @@ describe('LessonTable', () => {
     ];
 
     render(<LessonTable lessons={lessons} onDelete={vi.fn()} />);
+    selectMonth('all');
 
     fireEvent.click(screen.getByRole('button', { name: /sort by date/i }));
     fireEvent.click(screen.getByRole('button', { name: /sort by date descending/i }));
@@ -116,6 +148,7 @@ describe('LessonTable', () => {
     ];
 
     render(<LessonTable lessons={lessons} onDelete={vi.fn()} />);
+    selectMonth('all');
 
     fireEvent.click(screen.getByRole('button', { name: /sort by student name ascending/i }));
     const studentButton = screen.getByRole('button', { name: /sort by student name descending/i });
@@ -136,6 +169,7 @@ describe('LessonTable', () => {
     ];
 
     render(<LessonTable lessons={lessons} onDelete={vi.fn()} />);
+    selectMonth('all');
 
     fireEvent.click(screen.getByRole('button', { name: /sort by student name/i }));
     fireEvent.click(screen.getByRole('button', { name: /sort by date/i }));
@@ -202,9 +236,7 @@ describe('LessonTable', () => {
 
     render(<LessonTable lessons={lessons} onDelete={vi.fn()} />);
 
-    fireEvent.change(screen.getByLabelText(/filter lessons by month/i), {
-      target: { value: '1' },
-    });
+    selectMonth('1');
 
     const rows = screen.getAllByRole('row').slice(1);
     expect(rows).toHaveLength(1);
@@ -220,9 +252,8 @@ describe('LessonTable', () => {
 
     render(<LessonTable lessons={lessons} onDelete={vi.fn()} />);
 
-    const monthSelect = screen.getByLabelText(/filter lessons by month/i);
-    fireEvent.change(monthSelect, { target: { value: '1' } });
-    fireEvent.change(monthSelect, { target: { value: 'all' } });
+    selectMonth('1');
+    selectMonth('all');
 
     const rows = screen.getAllByRole('row').slice(1);
     expect(rows).toHaveLength(3);
@@ -264,9 +295,7 @@ describe('LessonTable', () => {
 
     render(<LessonTable lessons={lessons} onDelete={vi.fn()} />);
 
-    fireEvent.change(screen.getByLabelText(/filter lessons by month/i), {
-      target: { value: '11' },
-    });
+    selectMonth('11');
 
     expect(screen.getByText(/no lessons found for the selected month/i)).toBeDefined();
   });

@@ -54,6 +54,13 @@ const MONTH_OPTIONS = [
   { value: '11', label: 'December' },
 ] as const;
 
+type MonthFilterValue = (typeof MONTH_OPTIONS)[number]['value'];
+
+/** Month filter values mirror `Date#getMonth`, so January is "0" and December is "11". */
+function getCurrentMonthValue(): MonthFilterValue {
+  return String(new Date().getMonth()) as MonthFilterValue;
+}
+
 const headerButtonClass =
   'flex items-center gap-1.5 transition hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2 rounded';
 const headerCellClass =
@@ -114,7 +121,7 @@ const initialMultiSort: MultiSortState = {
 
 export function LessonTable({ lessons, onDelete }: LessonTableProps) {
   const [sort, setSort] = useState<MultiSortState>(initialMultiSort);
-  const [selectedMonth, setSelectedMonth] = useState<(typeof MONTH_OPTIONS)[number]['value']>('all');
+  const [selectedMonth, setSelectedMonth] = useState<MonthFilterValue>(getCurrentMonthValue);
 
   const handleSort = useCallback((column: SortableColumn) => {
     setSort((prev) => {
@@ -168,7 +175,7 @@ export function LessonTable({ lessons, onDelete }: LessonTableProps) {
             id="month-filter"
             value={selectedMonth}
             onChange={(event: ChangeEvent<HTMLSelectElement>) =>
-              setSelectedMonth(event.target.value as (typeof MONTH_OPTIONS)[number]['value'])
+              setSelectedMonth(event.target.value as MonthFilterValue)
             }
             className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-400"
             aria-label="Filter lessons by month"
