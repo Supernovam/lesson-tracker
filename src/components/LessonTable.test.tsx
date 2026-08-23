@@ -10,6 +10,9 @@ const createLesson = (overrides: Partial<Lesson>): Lesson => ({
   duration: 60,
   comment: '',
   createdAt: 0,
+  lessonTypeId: null,
+  lessonTypeName: null,
+  calculatedPrice: null,
   ...overrides,
 });
 
@@ -226,6 +229,31 @@ describe('LessonTable', () => {
     expect(rows[0].textContent).toContain('Alice');
     expect(rows[1].textContent).toContain('Bob');
     expect(rows[2].textContent).toContain('Charlie');
+  });
+
+  it('shows lesson type before student name, with cost and no page total', () => {
+    const lessons: Lesson[] = [
+      createLesson({
+        id: '1',
+        studentName: 'Alice',
+        date: '2025-01-10',
+        lessonTypeName: 'Private Course',
+        calculatedPrice: 25.33,
+      }),
+    ];
+
+    render(<LessonTable lessons={lessons} onDelete={vi.fn()} />);
+
+    const headerCells = screen.getAllByRole('columnheader');
+    expect(headerCells[0].textContent).toMatch(/type/i);
+    expect(headerCells[1].textContent).toMatch(/student/i);
+
+    const dataRow = screen.getAllByRole('row')[1];
+    const cells = dataRow.querySelectorAll('td');
+    expect(cells[0].textContent).toBe('Private Course');
+    expect(cells[1].textContent).toBe('Alice');
+    expect(screen.getByText(/^25,33\s€$/)).toBeDefined();
+    expect(screen.queryByText(/^Total:/)).toBeNull();
   });
 
   it('shows empty filtered state when no lessons match selected month', () => {

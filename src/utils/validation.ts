@@ -35,6 +35,10 @@ export function validateLessonForm(data: LessonFormData): LessonValidationResult
     errors.duration = `Duration must not exceed ${MAX_DURATION} minutes`;
   }
 
+  if (!data.lessonTypeId.trim()) {
+    errors.lessonTypeId = 'Lesson type is required';
+  }
+
   return {
     valid: Object.keys(errors).length === 0,
     errors,

@@ -19,4 +19,12 @@ export async function ensureSchema(pool) {
       updated_at bigint NOT NULL
     );
   `);
+  await pool.query(`
+    ALTER TABLE lessons
+      ADD COLUMN IF NOT EXISTS lesson_type_id text REFERENCES lesson_types(id) ON DELETE RESTRICT
+  `);
+  await pool.query(`
+    ALTER TABLE lessons
+      ADD COLUMN IF NOT EXISTS calculated_price numeric(10, 2)
+  `);
 }

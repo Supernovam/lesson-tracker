@@ -49,6 +49,7 @@ export function useLessonStorage() {
       date: formData.date,
       duration: formData.duration,
       comment: formData.comment.trim(),
+      lessonTypeId: formData.lessonTypeId.trim(),
     };
 
     // Update state only after the API confirms the insert.

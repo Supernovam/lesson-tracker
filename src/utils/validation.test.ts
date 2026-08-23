@@ -7,6 +7,7 @@ describe('validateLessonForm', () => {
     date: '2025-03-08',
     duration: 120,
     comment: 'Great progress',
+    lessonTypeId: 'type-1',
   };
 
   it('returns valid for correct data', () => {
@@ -66,6 +67,12 @@ describe('validateLessonForm', () => {
   it('accepts valid comment as optional (empty)', () => {
     const result = validateLessonForm({ ...validData, comment: '' });
     expect(result.valid).toBe(true);
+  });
+
+  it('returns error when lesson type is missing', () => {
+    const result = validateLessonForm({ ...validData, lessonTypeId: '' });
+    expect(result.valid).toBe(false);
+    expect(result.errors.lessonTypeId).toBe('Lesson type is required');
   });
 });
 

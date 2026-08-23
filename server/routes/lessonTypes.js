@@ -22,6 +22,10 @@ function isUniqueViolation(err) {
   return Boolean(err && err.code === '23505');
 }
 
+function isForeignKeyViolation(err) {
+  return Boolean(err && err.code === '23503');
+}
+
 function parseLessonTypeBody(body) {
   const name = typeof body.name === 'string' ? body.name.trim() : '';
   const basePriceRaw = typeof body.basePrice === 'number' ? body.basePrice : Number(body.basePrice);
@@ -132,6 +136,11 @@ export function createLessonTypesRouter({ pool, isDbReady }) {
       await pool.query('DELETE FROM lesson_types WHERE id = $1', [id]);
       res.status(204).end();
     } catch (err) {
+      if (isForeignKeyViolation(err)) {
+        return res.status(409).json({
+          error: 'This lesson type is used by existing lessons and cannot be deleted',
+        });
+      }
       console.error('[lesson-tracker] Failed to delete lesson type:', err);
       res.status(500).json({ ok: false, error: 'failed to delete lesson type' });
     }
