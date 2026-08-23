@@ -1,8 +1,10 @@
-import { LessonForm } from './components/LessonForm';
-import { LessonTable } from './components/LessonTable';
+import { useState } from 'react';
 import { LoginScreen } from './components/LoginScreen';
 import { useAuth } from './hooks/useAuth';
-import { useLessonStorage } from './hooks/useLessonStorage';
+import { LessonsPage } from './pages/LessonsPage';
+import { LessonTypesPage } from './pages/LessonTypesPage';
+
+type Tab = 'lessons' | 'lesson-types';
 
 function TrackerApp({
   userEmail,
@@ -11,7 +13,12 @@ function TrackerApp({
   userEmail: string;
   onLogout: () => void;
 }) {
-  const { lessons, addLesson, deleteLesson } = useLessonStorage();
+  const [activeTab, setActiveTab] = useState<Tab>('lessons');
+
+  const tabClass = (tab: Tab) =>
+    activeTab === tab
+      ? 'rounded-md bg-slate-800 px-3 py-1.5 text-sm font-medium text-white'
+      : 'rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-800 hover:bg-slate-50';
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-800 antialiased">
@@ -32,14 +39,26 @@ function TrackerApp({
           </div>
         </header>
 
-        <section className="mb-10" aria-label="Add a new lesson">
-          <LessonForm onSubmit={addLesson} />
-        </section>
+        <nav className="mb-8 flex flex-wrap gap-2" aria-label="Main">
+          <button
+            type="button"
+            onClick={() => setActiveTab('lessons')}
+            className={tabClass('lessons')}
+            aria-current={activeTab === 'lessons' ? 'page' : undefined}
+          >
+            Lessons
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('lesson-types')}
+            className={tabClass('lesson-types')}
+            aria-current={activeTab === 'lesson-types' ? 'page' : undefined}
+          >
+            Lesson Types
+          </button>
+        </nav>
 
-        <section aria-label="Lesson history">
-          <h2 className="mb-4 text-lg font-semibold text-slate-800">Lesson history</h2>
-          <LessonTable lessons={lessons} onDelete={deleteLesson} />
-        </section>
+        {activeTab === 'lessons' ? <LessonsPage /> : <LessonTypesPage />}
       </main>
     </div>
   );

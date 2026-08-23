@@ -12,7 +12,6 @@ import {
   fetchGoogleUser,
   isEmailAllowed,
   parseEmailList,
-  requireAuth,
   toSessionUser,
 } from './auth.js';
 import {
@@ -21,6 +20,9 @@ import {
   resolveGoogleRedirectUri,
   withTrailingSlash,
 } from './urls.js';
+import { ensureSchema } from './schema.js';
+import { createLessonsRouter } from './routes/lessons.js';
+import { createLessonTypesRouter } from './routes/lessonTypes.js';
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 dotenv.config({ path: path.join(projectRoot, '.env') });
@@ -81,7 +83,7 @@ app.use((req, res, next) => {
   res.setHeader('Access-Control-Allow-Origin', origin);
   res.setHeader('Vary', 'Origin');
   res.setHeader('Access-Control-Allow-Credentials', 'true');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,DELETE,OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   res.setHeader('Access-Control-Max-Age', '86400');
 
@@ -181,19 +183,6 @@ const pool = new Pool({
 let dbReady = false;
 let dbInitError = null;
 
-async function ensureSchema() {
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS lessons (
-      id text PRIMARY KEY,
-      student_name text NOT NULL,
-      date date NOT NULL,
-      duration integer NOT NULL CHECK (duration > 0),
-      comment text NOT NULL DEFAULT '',
-      created_at bigint NOT NULL
-    );
-  `);
-}
-
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -207,7 +196,7 @@ async function ensureSchemaWithRetries() {
     try {
       // Force an actual connection attempt early to fail fast and retry on transient Neon issues.
       await pool.query('SELECT 1');
-      await ensureSchema();
+      await ensureSchema(pool);
       return;
     } catch (err) {
       lastErr = err;
@@ -359,86 +348,9 @@ app.post('/auth/logout', (req, res) => {
   res.status(204).end();
 });
 
-app.get('/api/lessons', requireAuth, async (_req, res) => {
-  if (!dbReady) return res.status(503).json({ ok: false, error: 'db not ready' });
-  try {
-    const { rows } = await pool.query(`
-      SELECT
-        id,
-        student_name AS "studentName",
-        date::text AS date,
-        duration,
-        comment,
-        created_at AS "createdAt"
-      FROM lessons
-      ORDER BY date ASC, created_at ASC
-    `);
-
-    res.json(rows);
-  } catch (err) {
-    console.error('[lesson-tracker] Failed to load lessons:', err);
-    res.status(500).json({ ok: false, error: 'failed to load lessons' });
-  }
-});
-
-app.post('/api/lessons', requireAuth, async (req, res) => {
-  if (!dbReady) return res.status(503).json({ ok: false, error: 'db not ready' });
-  const body = req.body ?? {};
-  const studentName = typeof body.studentName === 'string' ? body.studentName.trim() : '';
-  const dateStr = typeof body.date === 'string' ? body.date.trim() : '';
-  const duration = typeof body.duration === 'number' ? body.duration : Number(body.duration);
-  const comment = typeof body.comment === 'string' ? body.comment.trim() : '';
-
-  const date = new Date(dateStr);
-  const durationInt = Number.isInteger(duration) ? duration : Math.floor(duration);
-
-  if (!studentName) return res.status(400).json({ error: 'studentName is required' });
-  if (!dateStr || Number.isNaN(date.getTime())) return res.status(400).json({ error: 'date is invalid' });
-  if (!Number.isInteger(durationInt) || durationInt < 1 || durationInt > 9999) {
-    return res
-      .status(400)
-      .json({ error: 'duration must be an integer between 1 and 9999' });
-  }
-
-  const id = crypto.randomUUID();
-  const createdAt = Date.now();
-
-  try {
-    const { rows } = await pool.query(
-      `
-        INSERT INTO lessons (id, student_name, date, duration, comment, created_at)
-        VALUES ($1, $2, $3::date, $4, $5, $6)
-        RETURNING
-          id,
-          student_name AS "studentName",
-          date::text AS date,
-          duration,
-          comment,
-          created_at AS "createdAt"
-      `,
-      [id, studentName, dateStr, durationInt, comment, createdAt]
-    );
-
-    res.status(201).json(rows[0]);
-  } catch (err) {
-    console.error('[lesson-tracker] Failed to create lesson:', err);
-    res.status(500).json({ ok: false, error: 'failed to create lesson' });
-  }
-});
-
-app.delete('/api/lessons/:id', requireAuth, async (req, res) => {
-  if (!dbReady) return res.status(503).json({ ok: false, error: 'db not ready' });
-  const { id } = req.params;
-  if (!id) return res.status(400).json({ error: 'id is required' });
-
-  try {
-    await pool.query('DELETE FROM lessons WHERE id = $1', [id]);
-    res.status(204).end();
-  } catch (err) {
-    console.error('[lesson-tracker] Failed to delete lesson:', err);
-    res.status(500).json({ ok: false, error: 'failed to delete lesson' });
-  }
-});
+const isDbReady = () => dbReady;
+app.use('/api/lessons', createLessonsRouter({ pool, isDbReady }));
+app.use('/api/lesson-types', createLessonTypesRouter({ pool, isDbReady }));
 
 // Accept traffic immediately so Render health checks can succeed while DB connects.
 startServer();

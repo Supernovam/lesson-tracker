@@ -33,3 +33,17 @@ export function getTodayISO(): string {
 export function formatDuration(minutes: number): string {
   return `${minutes} min`;
 }
+
+const priceFormatter = new Intl.NumberFormat('de-DE', {
+  style: 'currency',
+  currency: 'EUR',
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+
+/**
+ * Formats a euro amount for display (e.g. "19,00 €").
+ */
+export function formatPrice(amount: number): string {
+  return priceFormatter.format(amount);
+}

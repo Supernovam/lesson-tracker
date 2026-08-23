@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { formatDisplayDate, getTodayISO, formatDuration } from './format';
+import { formatDisplayDate, getTodayISO, formatDuration, formatPrice } from './format';
 
 describe('formatDisplayDate', () => {
   it('formats YYYY-MM-DD to European style DD.MM.YYYY', () => {
@@ -35,5 +35,13 @@ describe('formatDuration', () => {
   it('appends " min" to number', () => {
     expect(formatDuration(120)).toBe('120 min');
     expect(formatDuration(1)).toBe('1 min');
+  });
+});
+
+describe('formatPrice', () => {
+  it('formats euro amounts with exactly two decimals', () => {
+    expect(formatPrice(19)).toBe('19,00\u00A0€');
+    expect(formatPrice(25.33)).toBe('25,33\u00A0€');
+    expect(formatPrice(63)).toBe('63,00\u00A0€');
   });
 });
