@@ -31,7 +31,7 @@ describe('LessonTable', () => {
   });
 
   it('shows empty state when no lessons', () => {
-    render(<LessonTable lessons={[]} onDelete={vi.fn()} />);
+    render(<LessonTable lessons={[]} onDelete={vi.fn()} onEdit={vi.fn()} />);
     expect(screen.getByRole('status', { name: /no lessons recorded/i })).toBeDefined();
     expect(screen.getByText(/no lessons yet/i)).toBeDefined();
   });
@@ -43,7 +43,7 @@ describe('LessonTable', () => {
       createLesson({ id: '3', studentName: 'Bob', date: '2025-02-10' }),
     ];
 
-    render(<LessonTable lessons={lessons} onDelete={vi.fn()} />);
+    render(<LessonTable lessons={lessons} onDelete={vi.fn()} onEdit={vi.fn()} />);
 
     expect((screen.getByLabelText(/filter lessons by month/i) as HTMLSelectElement).value).toBe('0');
 
@@ -59,7 +59,7 @@ describe('LessonTable', () => {
       createLesson({ id: '3', studentName: 'Bob', date: '2025-02-10' }),
     ];
 
-    render(<LessonTable lessons={lessons} onDelete={vi.fn()} />);
+    render(<LessonTable lessons={lessons} onDelete={vi.fn()} onEdit={vi.fn()} />);
     selectMonth('all');
 
     const rows = screen.getAllByRole('row').slice(1);
@@ -76,7 +76,7 @@ describe('LessonTable', () => {
       createLesson({ id: '3', studentName: 'Bob', date: '2025-01-01' }),
     ];
 
-    render(<LessonTable lessons={lessons} onDelete={vi.fn()} />);
+    render(<LessonTable lessons={lessons} onDelete={vi.fn()} onEdit={vi.fn()} />);
 
     fireEvent.click(screen.getByRole('button', { name: /sort by student name/i }));
 
@@ -93,7 +93,7 @@ describe('LessonTable', () => {
       createLesson({ id: '3', studentName: 'Bob', date: '2025-01-01' }),
     ];
 
-    render(<LessonTable lessons={lessons} onDelete={vi.fn()} />);
+    render(<LessonTable lessons={lessons} onDelete={vi.fn()} onEdit={vi.fn()} />);
 
     fireEvent.click(screen.getByRole('button', { name: /sort by student name/i }));
     fireEvent.click(screen.getByRole('button', { name: /sort by student name descending/i }));
@@ -111,7 +111,7 @@ describe('LessonTable', () => {
       createLesson({ id: '3', studentName: 'Same', date: '2025-02-05' }),
     ];
 
-    render(<LessonTable lessons={lessons} onDelete={vi.fn()} />);
+    render(<LessonTable lessons={lessons} onDelete={vi.fn()} onEdit={vi.fn()} />);
     selectMonth('all');
 
     fireEvent.click(screen.getByRole('button', { name: /sort by date/i }));
@@ -129,7 +129,7 @@ describe('LessonTable', () => {
       createLesson({ id: '3', studentName: 'Same', date: '2025-02-05' }),
     ];
 
-    render(<LessonTable lessons={lessons} onDelete={vi.fn()} />);
+    render(<LessonTable lessons={lessons} onDelete={vi.fn()} onEdit={vi.fn()} />);
     selectMonth('all');
 
     fireEvent.click(screen.getByRole('button', { name: /sort by date/i }));
@@ -147,7 +147,7 @@ describe('LessonTable', () => {
       createLesson({ id: '2', studentName: 'Alice', date: '2025-01-10' }),
     ];
 
-    render(<LessonTable lessons={lessons} onDelete={vi.fn()} />);
+    render(<LessonTable lessons={lessons} onDelete={vi.fn()} onEdit={vi.fn()} />);
     selectMonth('all');
 
     fireEvent.click(screen.getByRole('button', { name: /sort by student name ascending/i }));
@@ -168,7 +168,7 @@ describe('LessonTable', () => {
       createLesson({ id: '3', studentName: 'Bob', date: '2025-02-05' }),
     ];
 
-    render(<LessonTable lessons={lessons} onDelete={vi.fn()} />);
+    render(<LessonTable lessons={lessons} onDelete={vi.fn()} onEdit={vi.fn()} />);
     selectMonth('all');
 
     fireEvent.click(screen.getByRole('button', { name: /sort by student name/i }));
@@ -187,7 +187,7 @@ describe('LessonTable', () => {
       createLesson({ id: 'm-second', studentName: 'Same', date: '2025-01-01', comment: 'B' }),
     ];
 
-    render(<LessonTable lessons={lessons} onDelete={vi.fn()} />);
+    render(<LessonTable lessons={lessons} onDelete={vi.fn()} onEdit={vi.fn()} />);
 
     fireEvent.click(screen.getByRole('button', { name: /sort by student name/i }));
 
@@ -202,7 +202,7 @@ describe('LessonTable', () => {
       createLesson({ id: '1', studentName: 'Alice', date: '2025-01-01' }),
     ];
 
-    render(<LessonTable lessons={lessons} onDelete={vi.fn()} />);
+    render(<LessonTable lessons={lessons} onDelete={vi.fn()} onEdit={vi.fn()} />);
 
     const sortButton = screen.getByRole('button', { name: /sort by student name/i });
     fireEvent.click(sortButton);
@@ -220,11 +220,24 @@ describe('LessonTable', () => {
       createLesson({ id: 'lesson-1', studentName: 'Alice', date: '2025-01-01' }),
     ];
 
-    render(<LessonTable lessons={lessons} onDelete={onDelete} />);
+    render(<LessonTable lessons={lessons} onEdit={vi.fn()} onDelete={onDelete} />);
 
     fireEvent.click(screen.getByRole('button', { name: /delete lesson for alice/i }));
 
     expect(onDelete).toHaveBeenCalledWith('lesson-1');
+  });
+
+  it('calls onEdit with the lesson when the edit button is clicked', () => {
+    const onEdit = vi.fn();
+    const lessons: Lesson[] = [
+      createLesson({ id: 'lesson-1', studentName: 'Alice', date: '2025-01-01' }),
+    ];
+
+    render(<LessonTable lessons={lessons} onEdit={onEdit} onDelete={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /edit lesson for alice/i }));
+
+    expect(onEdit).toHaveBeenCalledWith(lessons[0]);
   });
 
   it('filters lessons by selected month', () => {
@@ -234,7 +247,7 @@ describe('LessonTable', () => {
       createLesson({ id: '3', studentName: 'Charlie', date: '2025-03-10' }),
     ];
 
-    render(<LessonTable lessons={lessons} onDelete={vi.fn()} />);
+    render(<LessonTable lessons={lessons} onDelete={vi.fn()} onEdit={vi.fn()} />);
 
     selectMonth('1');
 
@@ -250,7 +263,7 @@ describe('LessonTable', () => {
       createLesson({ id: '3', studentName: 'Charlie', date: '2025-03-10' }),
     ];
 
-    render(<LessonTable lessons={lessons} onDelete={vi.fn()} />);
+    render(<LessonTable lessons={lessons} onDelete={vi.fn()} onEdit={vi.fn()} />);
 
     selectMonth('1');
     selectMonth('all');
@@ -273,7 +286,7 @@ describe('LessonTable', () => {
       }),
     ];
 
-    render(<LessonTable lessons={lessons} onDelete={vi.fn()} />);
+    render(<LessonTable lessons={lessons} onDelete={vi.fn()} onEdit={vi.fn()} />);
 
     const headerCells = screen.getAllByRole('columnheader');
     expect(headerCells[0].textContent).toMatch(/type/i);
@@ -293,7 +306,7 @@ describe('LessonTable', () => {
       createLesson({ id: '2', studentName: 'Bob', date: '2025-02-10' }),
     ];
 
-    render(<LessonTable lessons={lessons} onDelete={vi.fn()} />);
+    render(<LessonTable lessons={lessons} onDelete={vi.fn()} onEdit={vi.fn()} />);
 
     selectMonth('11');
 

@@ -10,6 +10,27 @@ async function fetchLessons(signal?: AbortSignal): Promise<Lesson[]> {
   return (await res.json()) as Lesson[];
 }
 
+function errorFromResponse(text: string, status: number, statusText: string): Error {
+  let parsedError: string | undefined;
+  try {
+    const parsed = JSON.parse(text);
+    if (parsed && typeof parsed.error === 'string') parsedError = parsed.error;
+  } catch {
+    // ignore JSON parse errors and fall back below
+  }
+  return new Error(parsedError || text || `${status} ${statusText}`);
+}
+
+function toPayload(formData: LessonFormData) {
+  return {
+    studentName: formData.studentName.trim(),
+    date: formData.date,
+    duration: formData.duration,
+    comment: formData.comment.trim(),
+    lessonTypeId: formData.lessonTypeId.trim(),
+  };
+}
+
 /**
  * Custom hook for lesson list persisted in Neon Postgres.
  * Returns lessons sorted by date (chronological, oldest first).
@@ -44,35 +65,34 @@ export function useLessonStorage() {
   }, []);
 
   const addLesson = useCallback(async (formData: LessonFormData) => {
-    const payload = {
-      studentName: formData.studentName.trim(),
-      date: formData.date,
-      duration: formData.duration,
-      comment: formData.comment.trim(),
-      lessonTypeId: formData.lessonTypeId.trim(),
-    };
-
     // Update state only after the API confirms the insert.
     const res = await apiFetch('/api/lessons', {
       method: 'POST',
-      body: JSON.stringify(payload),
+      body: JSON.stringify(toPayload(formData)),
     });
 
     if (!res.ok) {
       const text = await res.text().catch(() => '');
-      // Server responds with JSON like: { error: "..." } but we fall back to raw text.
-      let parsedError: string | undefined;
-      try {
-        const parsed = JSON.parse(text);
-        if (parsed && typeof parsed.error === 'string') parsedError = parsed.error;
-      } catch {
-        // ignore JSON parse errors and fall back below
-      }
-      throw new Error(parsedError || text || `${res.status} ${res.statusText}`);
+      throw errorFromResponse(text, res.status, res.statusText);
     }
 
     const lesson = (await res.json()) as Lesson;
     setLessons((prev) => [...prev, lesson]);
+  }, []);
+
+  const updateLesson = useCallback(async (id: string, formData: LessonFormData) => {
+    const res = await apiFetch(`/api/lessons/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      body: JSON.stringify(toPayload(formData)),
+    });
+
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      throw errorFromResponse(text, res.status, res.statusText);
+    }
+
+    const lesson = (await res.json()) as Lesson;
+    setLessons((prev) => prev.map((item) => (item.id === id ? lesson : item)));
   }, []);
 
   const deleteLesson = useCallback((id: string) => {
@@ -97,5 +117,5 @@ export function useLessonStorage() {
     }
   );
 
-  return { lessons: lessonsByDate, addLesson, deleteLesson };
+  return { lessons: lessonsByDate, addLesson, updateLesson, deleteLesson };
 }

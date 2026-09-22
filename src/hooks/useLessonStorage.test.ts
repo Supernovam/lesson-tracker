@@ -130,6 +130,43 @@ describe('useLessonStorage', () => {
     expect(result.current.lessons.map((l) => l.id)).toEqual(['a', 'b']);
   });
 
+  it('replaces the edited lesson via PUT and keeps the server price', async () => {
+    mockedApiFetch.mockResolvedValueOnce(jsonResponse([lesson]));
+    const { result } = renderHook(() => useLessonStorage());
+    await waitFor(() => expect(result.current.lessons).toHaveLength(1));
+
+    const updated = { ...lesson, studentName: 'Alex B', duration: 90, calculatedPrice: 38 };
+    mockedApiFetch.mockResolvedValueOnce(jsonResponse(updated));
+    await act(async () => {
+      await result.current.updateLesson('lesson-1', { ...formData, studentName: 'Alex B', duration: 90 });
+    });
+
+    const { calls } = mockedApiFetch.mock;
+    const [url, options] = calls[calls.length - 1];
+    expect(url).toBe('/api/lessons/lesson-1');
+    expect(options?.method).toBe('PUT');
+    expect(JSON.parse(options?.body as string)).toMatchObject({
+      studentName: 'Alex B',
+      duration: 90,
+      lessonTypeId: 'type-private',
+    });
+    expect(result.current.lessons).toHaveLength(1);
+    expect(result.current.lessons[0]).toMatchObject({ studentName: 'Alex B', calculatedPrice: 38 });
+  });
+
+  it('keeps the existing lesson when an update fails', async () => {
+    mockedApiFetch.mockResolvedValueOnce(jsonResponse([lesson]));
+    const { result } = renderHook(() => useLessonStorage());
+    await waitFor(() => expect(result.current.lessons).toHaveLength(1));
+
+    mockedApiFetch.mockResolvedValueOnce(
+      errorResponse(JSON.stringify({ error: 'lesson not found' }), 404, 'Not Found')
+    );
+
+    await expect(result.current.updateLesson('lesson-1', formData)).rejects.toThrow('lesson not found');
+    expect(result.current.lessons[0].studentName).toBe('Alex');
+  });
+
   it('removes a lesson after a successful delete', async () => {
     mockedApiFetch.mockResolvedValueOnce(jsonResponse([lesson]));
     const { result } = renderHook(() => useLessonStorage());

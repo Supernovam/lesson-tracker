@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { LessonForm } from './LessonForm';
+import type { Lesson } from '../types/lesson';
 import type { LessonType } from '../types/lessonType';
 
 const lessonTypes: LessonType[] = [
@@ -21,6 +22,18 @@ const lessonTypes: LessonType[] = [
     updatedAt: 1,
   },
 ];
+
+const editingLesson: Lesson = {
+  id: 'lesson-1',
+  studentName: 'Alex',
+  date: '2026-03-08',
+  duration: 60,
+  comment: 'Went well',
+  createdAt: 1,
+  lessonTypeId: 'private',
+  lessonTypeName: 'Private Course',
+  calculatedPrice: 25.33,
+};
 
 describe('LessonForm', () => {
   it('requires a lesson type', () => {
@@ -168,5 +181,61 @@ describe('LessonForm', () => {
   it('does not show a price preview before a type is chosen', () => {
     render(<LessonForm lessonTypes={lessonTypes} onSubmit={vi.fn()} />);
     expect(screen.queryByText(/estimated cost/i)).toBeNull();
+  });
+
+  it('prefills the lesson being edited and submits its current values', async () => {
+    const onSubmit = vi.fn().mockResolvedValue(undefined);
+
+    render(
+      <LessonForm
+        lessonTypes={lessonTypes}
+        editing={editingLesson}
+        onSubmit={onSubmit}
+        onCancelEdit={vi.fn()}
+      />
+    );
+
+    expect(screen.getByRole('heading', { name: /edit lesson/i })).toBeDefined();
+    expect((screen.getByLabelText(/student name/i) as HTMLInputElement).value).toBe('Alex');
+    expect((screen.getByLabelText(/lesson type/i) as HTMLSelectElement).value).toBe('private');
+    expect((screen.getByLabelText(/^date$/i) as HTMLInputElement).value).toBe('2026-03-08');
+    expect((screen.getByLabelText(/duration/i) as HTMLInputElement).value).toBe('60');
+    expect((screen.getByLabelText(/comment/i) as HTMLTextAreaElement).value).toBe('Went well');
+    expect(screen.getByText(/estimated cost/i).textContent).toMatch(/25,33/);
+
+    fireEvent.change(screen.getByLabelText(/student name/i), { target: { value: 'Alex B' } });
+    fireEvent.click(screen.getByRole('button', { name: /update lesson/i }));
+
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        studentName: 'Alex B',
+        lessonTypeId: 'private',
+        duration: 60,
+        date: '2026-03-08',
+        comment: 'Went well',
+      })
+    );
+    expect((screen.getByLabelText(/student name/i) as HTMLInputElement).value).toBe('Alex B');
+  });
+
+  it('calls onCancelEdit and returns to an empty log form', () => {
+    const onCancelEdit = vi.fn();
+    const { rerender } = render(
+      <LessonForm
+        lessonTypes={lessonTypes}
+        editing={{ ...editingLesson, comment: '' }}
+        onSubmit={vi.fn()}
+        onCancelEdit={onCancelEdit}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /cancel/i }));
+    expect(onCancelEdit).toHaveBeenCalled();
+
+    rerender(<LessonForm lessonTypes={lessonTypes} editing={null} onSubmit={vi.fn()} onCancelEdit={vi.fn()} />);
+    expect(screen.getByRole('heading', { name: /log a lesson/i })).toBeDefined();
+    expect((screen.getByLabelText(/student name/i) as HTMLInputElement).value).toBe('');
+    expect((screen.getByLabelText(/duration/i) as HTMLInputElement).value).toBe('');
   });
 });
