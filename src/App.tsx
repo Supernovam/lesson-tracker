@@ -3,8 +3,9 @@ import { LoginScreen } from './components/LoginScreen';
 import { useAuth } from './hooks/useAuth';
 import { LessonsPage } from './pages/LessonsPage';
 import { LessonTypesPage } from './pages/LessonTypesPage';
+import { SchoolsPage } from './pages/SchoolsPage';
 
-type Tab = 'lessons' | 'lesson-types';
+type Tab = 'lessons' | 'lesson-types' | 'schools';
 
 function TrackerApp({
   userEmail,
@@ -56,9 +57,19 @@ function TrackerApp({
           >
             Lesson Types
           </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('schools')}
+            className={tabClass('schools')}
+            aria-current={activeTab === 'schools' ? 'page' : undefined}
+          >
+            Schools
+          </button>
         </nav>
 
-        {activeTab === 'lessons' ? <LessonsPage /> : <LessonTypesPage />}
+        {activeTab === 'lessons' && <LessonsPage />}
+        {activeTab === 'lesson-types' && <LessonTypesPage />}
+        {activeTab === 'schools' && <SchoolsPage />}
       </main>
     </div>
   );

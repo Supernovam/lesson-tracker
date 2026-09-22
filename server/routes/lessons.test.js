@@ -10,15 +10,32 @@ const privateCourse = {
   baseDurationMinutes: 45,
 };
 
-/** Resolves the lesson-type lookup, then echoes the INSERT back like Postgres would. */
-function pricingPool(lessonType = privateCourse) {
+const eastCampus = {
+  id: 'school-east',
+  title: 'East Campus',
+};
+
+/** Resolves the lesson-type and school lookups, then echoes writes back like Postgres would. */
+function pricingPool(lessonType = privateCourse, school = eastCampus) {
   return createFakePool((sql, params) => {
+    if (sql.includes('FROM schools')) {
+      return { rows: school ? [school] : [] };
+    }
     if (sql.includes('FROM lesson_types')) {
       return { rows: lessonType ? [lessonType] : [] };
     }
     if (sql.includes('INSERT INTO lessons')) {
-      const [id, studentName, date, duration, comment, createdAt, lessonTypeId, calculatedPrice] =
-        params;
+      const [
+        id,
+        studentName,
+        date,
+        duration,
+        comment,
+        createdAt,
+        lessonTypeId,
+        calculatedPrice,
+        schoolId,
+      ] = params;
       return {
         rows: [
           {
@@ -29,13 +46,15 @@ function pricingPool(lessonType = privateCourse) {
             comment,
             createdAt,
             lessonTypeId,
+            schoolId,
             calculatedPrice: String(calculatedPrice),
           },
         ],
       };
     }
     if (sql.includes('UPDATE lessons')) {
-      const [id, studentName, date, duration, comment, lessonTypeId, calculatedPrice] = params;
+      const [id, studentName, date, duration, comment, lessonTypeId, calculatedPrice, schoolId] =
+        params;
       return {
         rows: [
           {
@@ -46,6 +65,7 @@ function pricingPool(lessonType = privateCourse) {
             comment,
             createdAt: 1,
             lessonTypeId,
+            schoolId,
             calculatedPrice: String(calculatedPrice),
           },
         ],
@@ -66,6 +86,7 @@ const validBody = {
   duration: 60,
   comment: 'Good session',
   lessonTypeId: 'type-private',
+  schoolId: 'school-east',
 };
 
 describe('GET /api/lessons', () => {
@@ -81,6 +102,8 @@ describe('GET /api/lessons', () => {
           createdAt: 1,
           lessonTypeId: 'type-private',
           lessonTypeName: 'Private Course',
+          schoolId: 'school-east',
+          schoolTitle: 'East Campus',
           calculatedPrice: '25.33',
         },
       ],
@@ -92,6 +115,8 @@ describe('GET /api/lessons', () => {
     expect(res.body[0]).toMatchObject({
       lessonTypeId: 'type-private',
       lessonTypeName: 'Private Course',
+      schoolId: 'school-east',
+      schoolTitle: 'East Campus',
       calculatedPrice: 25.33,
     });
   });
@@ -108,6 +133,8 @@ describe('GET /api/lessons', () => {
           createdAt: 1,
           lessonTypeId: null,
           lessonTypeName: null,
+          schoolId: null,
+          schoolTitle: null,
           calculatedPrice: null,
         },
       ],
@@ -116,7 +143,9 @@ describe('GET /api/lessons', () => {
     const res = await request(appFor(pool)).get('/api/lessons');
 
     expect(res.body[0].calculatedPrice).toBeNull();
+    expect(res.body[0].schoolId).toBeNull();
     expect(queryFor(pool, 'LEFT JOIN lesson_types')).toBeDefined();
+    expect(queryFor(pool, 'LEFT JOIN schools')).toBeDefined();
   });
 
   it('requires authentication', async () => {
@@ -143,6 +172,8 @@ describe('POST /api/lessons', () => {
     expect(res.body.calculatedPrice).toBe(25.33);
     expect(res.body.lessonTypeId).toBe('type-private');
     expect(res.body.lessonTypeName).toBe('Private Course');
+    expect(res.body.schoolId).toBe('school-east');
+    expect(res.body.schoolTitle).toBe('East Campus');
 
     const insert = queryFor(pool, 'INSERT INTO lessons');
     expect(insert.params).toContain('type-private');
@@ -186,6 +217,26 @@ describe('POST /api/lessons', () => {
     expect(queryFor(pool, 'INSERT INTO lessons')).toBeUndefined();
   });
 
+  it('rejects a missing school', async () => {
+    const pool = pricingPool();
+
+    const res = await request(appFor(pool)).post('/api/lessons').send({ ...validBody, schoolId: '' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/schoolId is required/);
+    expect(queryFor(pool, 'INSERT INTO lessons')).toBeUndefined();
+  });
+
+  it('rejects a school that does not exist', async () => {
+    const pool = pricingPool(privateCourse, null);
+
+    const res = await request(appFor(pool)).post('/api/lessons').send(validBody);
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/schoolId is invalid/);
+    expect(queryFor(pool, 'INSERT INTO lessons')).toBeUndefined();
+  });
+
   it.each([
     ['studentName', { studentName: '  ' }, /studentName is required/],
     ['date', { date: 'not-a-date' }, /date is invalid/],
@@ -224,6 +275,8 @@ describe('PUT /api/lessons/:id', () => {
       duration: 90,
       lessonTypeId: 'type-private',
       lessonTypeName: 'Private Course',
+      schoolId: 'school-east',
+      schoolTitle: 'East Campus',
       calculatedPrice: 38,
     });
 
@@ -235,6 +288,7 @@ describe('PUT /api/lessons/:id', () => {
   it('returns 404 when the lesson is gone', async () => {
     const pool = createFakePool((sql) => {
       if (sql.includes('FROM lesson_types')) return { rows: [privateCourse] };
+      if (sql.includes('FROM schools')) return { rows: [eastCampus] };
       return { rows: [] };
     });
 

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { validateLessonForm, validateLessonTypeForm, parseDuration } from './validation';
+import { validateLessonForm, validateLessonTypeForm, validateSchoolForm, parseDuration } from './validation';
 
 describe('validateLessonForm', () => {
   const validData = {
@@ -8,6 +8,7 @@ describe('validateLessonForm', () => {
     duration: 120,
     comment: 'Great progress',
     lessonTypeId: 'type-1',
+    schoolId: 'school-1',
   };
 
   it('returns valid for correct data', () => {
@@ -73,6 +74,12 @@ describe('validateLessonForm', () => {
     const result = validateLessonForm({ ...validData, lessonTypeId: '' });
     expect(result.valid).toBe(false);
     expect(result.errors.lessonTypeId).toBe('Lesson type is required');
+  });
+
+  it('returns error when school is missing', () => {
+    const result = validateLessonForm({ ...validData, schoolId: '  ' });
+    expect(result.valid).toBe(false);
+    expect(result.errors.schoolId).toBe('School is required');
   });
 });
 
@@ -145,5 +152,19 @@ describe('validateLessonTypeForm', () => {
     expect(validateLessonTypeForm({ ...validData, baseDurationMinutes: 45.5 }).valid).toBe(false);
     expect(validateLessonTypeForm({ ...validData, baseDurationMinutes: 10000 }).errors.baseDurationMinutes)
       .toContain('9999');
+  });
+});
+
+describe('validateSchoolForm', () => {
+  it('returns valid for a title and address', () => {
+    const result = validateSchoolForm({ title: 'East Campus', address: 'Main St\n10115 Berlin' });
+    expect(result.valid).toBe(true);
+  });
+
+  it('requires a title and an address', () => {
+    const result = validateSchoolForm({ title: '  ', address: '\n' });
+    expect(result.valid).toBe(false);
+    expect(result.errors.title).toBe('Title is required');
+    expect(result.errors.address).toBe('Address is required');
   });
 });

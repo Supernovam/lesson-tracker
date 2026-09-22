@@ -1,16 +1,10 @@
 import type { LessonFormData, LessonValidationResult } from '../types/lesson';
 import type { LessonTypeFormData, LessonTypeValidationResult } from '../types/lessonType';
+import type { SchoolFormData, SchoolValidationResult } from '../types/school';
 
 const MIN_DURATION = 1;
 const MAX_DURATION = 9999;
 
-/**
- * Validates lesson form data.
- * - studentName: non-empty, trimmed
- * - date: non-empty, valid date string
- * - duration: positive integer between MIN_DURATION and MAX_DURATION
- * - comment: optional (no validation)
- */
 export function validateLessonForm(data: LessonFormData): LessonValidationResult {
   const errors: LessonValidationResult['errors'] = {};
 
@@ -37,6 +31,10 @@ export function validateLessonForm(data: LessonFormData): LessonValidationResult
 
   if (!data.lessonTypeId.trim()) {
     errors.lessonTypeId = 'Lesson type is required';
+  }
+
+  if (!data.schoolId.trim()) {
+    errors.schoolId = 'School is required';
   }
 
   return {
@@ -91,6 +89,23 @@ export function validateLessonTypeForm(data: LessonTypeFormData): LessonTypeVali
     errors.baseDurationMinutes = `Duration must be a positive integer (${MIN_DURATION}-${MAX_DURATION} minutes)`;
   } else if (durationNum > MAX_DURATION) {
     errors.baseDurationMinutes = `Duration must not exceed ${MAX_DURATION} minutes`;
+  }
+
+  return {
+    valid: Object.keys(errors).length === 0,
+    errors,
+  };
+}
+
+export function validateSchoolForm(data: SchoolFormData): SchoolValidationResult {
+  const errors: SchoolValidationResult['errors'] = {};
+
+  if (!data.title.trim()) {
+    errors.title = 'Title is required';
+  }
+
+  if (!data.address.trim()) {
+    errors.address = 'Address is required';
   }
 
   return {

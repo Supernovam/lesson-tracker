@@ -20,7 +20,7 @@ const EXPORT_FILENAME_MONTH: Record<string, string> = {
   '11': 'December',
 };
 
-export type LessonDisplayRow = readonly [string, string, string, string, string, string];
+export type LessonDisplayRow = readonly [string, string, string, string, string, string, string];
 
 function sumCalculatedPrices(lessons: Lesson[]): number {
   return Math.round(lessons.reduce((sum, lesson) => sum + (lesson.calculatedPrice ?? 0), 0) * 100) / 100;
@@ -32,6 +32,7 @@ function sumCalculatedPrices(lessons: Lesson[]): number {
 export class LessonExcelExporter {
   static readonly COLUMN_HEADERS = [
     'Lesson type',
+    'School',
     'Student',
     'Date',
     'Duration',
@@ -53,6 +54,7 @@ export class LessonExcelExporter {
   static mapLessonToDisplayRow(lesson: Lesson): LessonDisplayRow {
     return [
       lesson.lessonTypeName || '—',
+      lesson.schoolTitle || '—',
       lesson.studentName,
       formatDisplayDate(lesson.date),
       formatDuration(lesson.duration),
@@ -90,13 +92,14 @@ export class LessonExcelExporter {
     const ordered = this.getOrderedLessonsForExport(lessons, selectedMonth, sort);
     const dataRows = ordered.map((lesson) => [...this.mapLessonToDisplayRow(lesson)]);
     const total = sumCalculatedPrices(ordered);
+    const costIndex = this.COLUMN_HEADERS.indexOf('Cost');
+    const totalRow = this.COLUMN_HEADERS.map((_, index) => {
+      if (index === 0) return 'Total';
+      if (index === costIndex) return formatPrice(total);
+      return '';
+    });
 
-    return [
-      [...this.COLUMN_HEADERS],
-      ...dataRows,
-      [],
-      ['Total', '', '', '', formatPrice(total), ''],
-    ];
+    return [[...this.COLUMN_HEADERS], ...dataRows, [], totalRow];
   }
 
   /**

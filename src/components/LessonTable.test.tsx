@@ -15,6 +15,8 @@ const createLesson = (overrides: Partial<Lesson>): Lesson => ({
   createdAt: 0,
   lessonTypeId: null,
   lessonTypeName: null,
+  schoolId: null,
+  schoolTitle: null,
   calculatedPrice: null,
   ...overrides,
 });
@@ -275,13 +277,14 @@ describe('LessonTable', () => {
     expect(rows[2].textContent).toContain('Charlie');
   });
 
-  it('shows lesson type before student name, with cost and no page total', () => {
+  it('shows lesson type and school before student name, with cost and no page total', () => {
     const lessons: Lesson[] = [
       createLesson({
         id: '1',
         studentName: 'Alice',
         date: '2025-01-10',
         lessonTypeName: 'Private Course',
+        schoolTitle: 'East Campus',
         calculatedPrice: 25.33,
       }),
     ];
@@ -290,12 +293,14 @@ describe('LessonTable', () => {
 
     const headerCells = screen.getAllByRole('columnheader');
     expect(headerCells[0].textContent).toMatch(/type/i);
-    expect(headerCells[1].textContent).toMatch(/student/i);
+    expect(headerCells[1].textContent).toMatch(/school/i);
+    expect(headerCells[2].textContent).toMatch(/student/i);
 
     const dataRow = screen.getAllByRole('row')[1];
     const cells = dataRow.querySelectorAll('td');
     expect(cells[0].textContent).toBe('Private Course');
-    expect(cells[1].textContent).toBe('Alice');
+    expect(cells[1].textContent).toBe('East Campus');
+    expect(cells[2].textContent).toBe('Alice');
     expect(screen.getByText(/^25,33\s€$/)).toBeDefined();
     expect(screen.queryByText(/^Total:/)).toBeNull();
   });

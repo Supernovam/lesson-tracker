@@ -12,6 +12,7 @@ import {
   Download,
   Tags,
   Euro,
+  School,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { Lesson } from '../types/lesson';
@@ -202,7 +203,7 @@ export function LessonTable({ lessons, onEdit, onDelete }: LessonTableProps) {
       </div>
       <div className="overflow-x-auto">
         <table
-          className="w-full min-w-[760px] border-collapse text-left"
+          className="w-full min-w-[860px] border-collapse text-left"
           aria-label="Lesson history"
         >
           <thead>
@@ -210,6 +211,11 @@ export function LessonTable({ lessons, onEdit, onDelete }: LessonTableProps) {
               <th scope="col" className={headerCellClass}>
                 <span className="flex items-center gap-1.5">
                   <Tags className="h-4 w-4" aria-hidden /> Type
+                </span>
+              </th>
+              <th scope="col" className={headerCellClass}>
+                <span className="flex items-center gap-1.5">
+                  <School className="h-4 w-4" aria-hidden /> School
                 </span>
               </th>
               <SortableHeader
@@ -249,7 +255,7 @@ export function LessonTable({ lessons, onEdit, onDelete }: LessonTableProps) {
           <tbody>
             {sortedLessons.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-4 py-6 text-center text-slate-500">
+                <td colSpan={8} className="px-4 py-6 text-center text-slate-500">
                   No lessons found for the selected month.
                 </td>
               </tr>
@@ -260,6 +266,7 @@ export function LessonTable({ lessons, onEdit, onDelete }: LessonTableProps) {
                   className="border-b border-slate-100 transition hover:bg-slate-50/50 last:border-b-0"
                 >
                   <td className="px-4 py-3 text-slate-600">{lesson.lessonTypeName || '—'}</td>
+                  <td className="px-4 py-3 text-slate-600">{lesson.schoolTitle || '—'}</td>
                   <td className="px-4 py-3 font-medium text-slate-800">{lesson.studentName}</td>
                   <td className="px-4 py-3 text-slate-600">{formatDisplayDate(lesson.date)}</td>
                   <td className="px-4 py-3 text-slate-600">{formatDuration(lesson.duration)}</td>
