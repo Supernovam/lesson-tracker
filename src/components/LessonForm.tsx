@@ -1,7 +1,7 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import type React from 'react';
 import { BookOpen } from 'lucide-react';
-import type { LessonFormData } from '../types/lesson';
+import type { Lesson, LessonFormData } from '../types/lesson';
 import type { LessonType } from '../types/lessonType';
 import { parseDuration, validateLessonForm } from '../utils/validation';
 import { formatDuration, formatPrice, getTodayISO } from '../utils/format';
@@ -9,7 +9,9 @@ import { calculateSessionPrice } from '../utils/pricing';
 
 interface LessonFormProps {
   lessonTypes: LessonType[];
+  editing?: Lesson | null;
   onSubmit: (data: LessonFormData) => void | Promise<void>;
+  onCancelEdit?: () => void;
 }
 
 /** `duration: 0` means "not set yet"; the chosen lesson type supplies the real value. */
@@ -21,12 +23,35 @@ const initialFormState: LessonFormData = {
   lessonTypeId: '',
 };
 
-export function LessonForm({ lessonTypes, onSubmit }: LessonFormProps) {
+export function LessonForm({
+  lessonTypes,
+  editing = null,
+  onSubmit,
+  onCancelEdit,
+}: LessonFormProps) {
   const [formData, setFormData] = useState<LessonFormData>(initialFormState);
   const [durationInput, setDurationInput] = useState('');
   const [errors, setErrors] = useState<Partial<Record<keyof LessonFormData, string>>>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (editing) {
+      setFormData({
+        studentName: editing.studentName,
+        date: editing.date,
+        duration: editing.duration,
+        comment: editing.comment,
+        lessonTypeId: editing.lessonTypeId ?? '',
+      });
+      setDurationInput(String(editing.duration));
+    } else {
+      setFormData({ ...initialFormState, date: getTodayISO() });
+      setDurationInput('');
+    }
+    setErrors({});
+    setSubmitError(null);
+  }, [editing]);
 
   const updateField = useCallback(<K extends keyof LessonFormData>(field: K, value: LessonFormData[K]) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -43,14 +68,16 @@ export function LessonForm({ lessonTypes, onSubmit }: LessonFormProps) {
       setIsSubmitting(true);
       try {
         await onSubmit(formData);
-        const retainedType = lessonTypes.find((type) => type.id === formData.lessonTypeId);
-        setFormData({
-          ...initialFormState,
-          date: getTodayISO(),
-          duration: retainedType?.baseDurationMinutes ?? 0,
-          lessonTypeId: formData.lessonTypeId,
-        });
-        setDurationInput(retainedType ? String(retainedType.baseDurationMinutes) : '');
+        if (!editing) {
+          const retainedType = lessonTypes.find((type) => type.id === formData.lessonTypeId);
+          setFormData({
+            ...initialFormState,
+            date: getTodayISO(),
+            duration: retainedType?.baseDurationMinutes ?? 0,
+            lessonTypeId: formData.lessonTypeId,
+          });
+          setDurationInput(retainedType ? String(retainedType.baseDurationMinutes) : '');
+        }
       } catch (err) {
         if (err instanceof Error) setSubmitError(err.message);
         else setSubmitError('Failed to save lesson. Please try again.');
@@ -58,7 +85,7 @@ export function LessonForm({ lessonTypes, onSubmit }: LessonFormProps) {
         setIsSubmitting(false);
       }
     },
-    [formData, lessonTypes, onSubmit]
+    [editing, formData, lessonTypes, onSubmit]
   );
 
   const selectedType = lessonTypes.find((type) => type.id === formData.lessonTypeId) ?? null;
@@ -113,8 +140,11 @@ export function LessonForm({ lessonTypes, onSubmit }: LessonFormProps) {
     updateField('duration', nextType?.baseDurationMinutes ?? 0);
   };
 
+  const isEditing = Boolean(editing);
+
   return (
     <form
+      id="lesson-form"
       onSubmit={handleSubmit}
       className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
       aria-labelledby="lesson-form-title"
@@ -122,7 +152,7 @@ export function LessonForm({ lessonTypes, onSubmit }: LessonFormProps) {
     >
       <h2 id="lesson-form-title" className="mb-6 flex items-center gap-2 text-lg font-semibold text-slate-800">
         <BookOpen className="h-5 w-5 text-slate-500" aria-hidden />
-        Log a lesson
+        {isEditing ? 'Edit lesson' : 'Log a lesson'}
       </h2>
 
       <div className="grid gap-5 sm:grid-cols-2">
@@ -244,9 +274,9 @@ export function LessonForm({ lessonTypes, onSubmit }: LessonFormProps) {
         </div>
       </div>
 
-      <div className="mt-6">
+      <div className="mt-6 flex flex-wrap items-center gap-3">
         {submitError && (
-          <p className="mb-3 text-sm text-red-600" role="alert">
+          <p className="mb-0 w-full text-sm text-red-600" role="alert">
             {submitError}
           </p>
         )}
@@ -255,8 +285,17 @@ export function LessonForm({ lessonTypes, onSubmit }: LessonFormProps) {
           className="w-full rounded-lg bg-slate-800 px-4 py-2.5 font-medium text-white transition hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 sm:w-auto sm:min-w-[140px]"
           disabled={isSubmitting}
         >
-          {isSubmitting ? 'Saving...' : 'Save lesson'}
+          {isSubmitting ? 'Saving...' : isEditing ? 'Update lesson' : 'Save lesson'}
         </button>
+        {isEditing && (
+          <button
+            type="button"
+            onClick={onCancelEdit}
+            className="rounded-lg border border-slate-300 bg-white px-4 py-2.5 font-medium text-slate-800 hover:bg-slate-50"
+          >
+            Cancel
+          </button>
+        )}
       </div>
     </form>
   );

@@ -15,6 +15,7 @@ vi.mock('./hooks/useLessonStorage', () => ({
   useLessonStorage: () => ({
     lessons: [],
     addLesson: vi.fn(),
+    updateLesson: vi.fn(),
     deleteLesson: vi.fn(),
   }),
 }));

@@ -15,12 +15,79 @@ const LESSON_RETURNING = `
   l.calculated_price AS "calculatedPrice"
 `;
 
+const LESSON_WRITE_RETURNING = `
+  id,
+  student_name AS "studentName",
+  date::text AS date,
+  duration,
+  comment,
+  created_at AS "createdAt",
+  lesson_type_id AS "lessonTypeId",
+  calculated_price AS "calculatedPrice"
+`;
+
 function mapLessonRow(row) {
   return {
     ...row,
     calculatedPrice:
       row.calculatedPrice == null ? null : Math.round(Number(row.calculatedPrice) * 100) / 100,
   };
+}
+
+function withLessonTypeName(row, lessonType) {
+  return {
+    ...mapLessonRow(row),
+    lessonTypeName: lessonType.name,
+  };
+}
+
+async function resolveLessonPricing(pool, lessonTypeId, durationInt) {
+  const lessonType = await findLessonType(pool, lessonTypeId);
+  if (!lessonType) return { error: 'lessonTypeId is invalid' };
+  return {
+    lessonType,
+    calculatedPrice: calculateSessionPrice(
+      durationInt,
+      Number(lessonType.baseDurationMinutes),
+      Number(lessonType.basePrice)
+    ),
+  };
+}
+
+function parseLessonBody(body) {
+  const studentName = typeof body.studentName === 'string' ? body.studentName.trim() : '';
+  const dateStr = typeof body.date === 'string' ? body.date.trim() : '';
+  const duration = typeof body.duration === 'number' ? body.duration : Number(body.duration);
+  const comment = typeof body.comment === 'string' ? body.comment.trim() : '';
+  const lessonTypeId = typeof body.lessonTypeId === 'string' ? body.lessonTypeId.trim() : '';
+
+  const date = new Date(dateStr);
+  const durationInt = Number.isInteger(duration) ? duration : Math.floor(duration);
+
+  if (!studentName) return { error: 'studentName is required' };
+  if (!dateStr || Number.isNaN(date.getTime())) return { error: 'date is invalid' };
+  if (!Number.isInteger(durationInt) || durationInt < 1 || durationInt > 9999) {
+    return { error: 'duration must be an integer between 1 and 9999' };
+  }
+  if (!lessonTypeId) return { error: 'lessonTypeId is required' };
+
+  return { studentName, dateStr, durationInt, comment, lessonTypeId };
+}
+
+async function findLessonType(pool, lessonTypeId) {
+  const typeResult = await pool.query(
+    `
+      SELECT
+        id,
+        name,
+        base_price AS "basePrice",
+        base_duration_minutes AS "baseDurationMinutes"
+      FROM lesson_types
+      WHERE id = $1
+    `,
+    [lessonTypeId]
+  );
+  return typeResult.rows[0] ?? null;
 }
 
 export function createLessonsRouter({ pool, isDbReady }) {
@@ -46,49 +113,15 @@ export function createLessonsRouter({ pool, isDbReady }) {
 
   router.post('/', async (req, res) => {
     if (!isDbReady()) return res.status(503).json({ ok: false, error: 'db not ready' });
-    const body = req.body ?? {};
-    const studentName = typeof body.studentName === 'string' ? body.studentName.trim() : '';
-    const dateStr = typeof body.date === 'string' ? body.date.trim() : '';
-    const duration = typeof body.duration === 'number' ? body.duration : Number(body.duration);
-    const comment = typeof body.comment === 'string' ? body.comment.trim() : '';
-    const lessonTypeId = typeof body.lessonTypeId === 'string' ? body.lessonTypeId.trim() : '';
-
-    const date = new Date(dateStr);
-    const durationInt = Number.isInteger(duration) ? duration : Math.floor(duration);
-
-    if (!studentName) return res.status(400).json({ error: 'studentName is required' });
-    if (!dateStr || Number.isNaN(date.getTime())) return res.status(400).json({ error: 'date is invalid' });
-    if (!Number.isInteger(durationInt) || durationInt < 1 || durationInt > 9999) {
-      return res
-        .status(400)
-        .json({ error: 'duration must be an integer between 1 and 9999' });
-    }
-    if (!lessonTypeId) return res.status(400).json({ error: 'lessonTypeId is required' });
+    const parsed = parseLessonBody(req.body ?? {});
+    if (parsed.error) return res.status(400).json({ error: parsed.error });
 
     const id = crypto.randomUUID();
     const createdAt = Date.now();
 
     try {
-      const typeResult = await pool.query(
-        `
-          SELECT
-            id,
-            name,
-            base_price AS "basePrice",
-            base_duration_minutes AS "baseDurationMinutes"
-          FROM lesson_types
-          WHERE id = $1
-        `,
-        [lessonTypeId]
-      );
-      const lessonType = typeResult.rows[0];
-      if (!lessonType) return res.status(400).json({ error: 'lessonTypeId is invalid' });
-
-      const calculatedPrice = calculateSessionPrice(
-        durationInt,
-        Number(lessonType.baseDurationMinutes),
-        Number(lessonType.basePrice)
-      );
+      const priced = await resolveLessonPricing(pool, parsed.lessonTypeId, parsed.durationInt);
+      if (priced.error) return res.status(400).json({ error: priced.error });
 
       const { rows } = await pool.query(
         `
@@ -96,26 +129,68 @@ export function createLessonsRouter({ pool, isDbReady }) {
             id, student_name, date, duration, comment, created_at, lesson_type_id, calculated_price
           )
           VALUES ($1, $2, $3::date, $4, $5, $6, $7, $8)
-          RETURNING
-            id,
-            student_name AS "studentName",
-            date::text AS date,
-            duration,
-            comment,
-            created_at AS "createdAt",
-            lesson_type_id AS "lessonTypeId",
-            calculated_price AS "calculatedPrice"
+          RETURNING ${LESSON_WRITE_RETURNING}
         `,
-        [id, studentName, dateStr, durationInt, comment, createdAt, lessonTypeId, calculatedPrice]
+        [
+          id,
+          parsed.studentName,
+          parsed.dateStr,
+          parsed.durationInt,
+          parsed.comment,
+          createdAt,
+          parsed.lessonTypeId,
+          priced.calculatedPrice,
+        ]
       );
 
-      res.status(201).json({
-        ...mapLessonRow(rows[0]),
-        lessonTypeName: lessonType.name,
-      });
+      res.status(201).json(withLessonTypeName(rows[0], priced.lessonType));
     } catch (err) {
       console.error('[lesson-tracker] Failed to create lesson:', err);
       res.status(500).json({ ok: false, error: 'failed to create lesson' });
+    }
+  });
+
+  router.put('/:id', async (req, res) => {
+    if (!isDbReady()) return res.status(503).json({ ok: false, error: 'db not ready' });
+    const { id } = req.params;
+    if (!id) return res.status(400).json({ error: 'id is required' });
+
+    const parsed = parseLessonBody(req.body ?? {});
+    if (parsed.error) return res.status(400).json({ error: parsed.error });
+
+    try {
+      const priced = await resolveLessonPricing(pool, parsed.lessonTypeId, parsed.durationInt);
+      if (priced.error) return res.status(400).json({ error: priced.error });
+
+      const { rows } = await pool.query(
+        `
+          UPDATE lessons
+          SET
+            student_name = $2,
+            date = $3::date,
+            duration = $4,
+            comment = $5,
+            lesson_type_id = $6,
+            calculated_price = $7
+          WHERE id = $1
+          RETURNING ${LESSON_WRITE_RETURNING}
+        `,
+        [
+          id,
+          parsed.studentName,
+          parsed.dateStr,
+          parsed.durationInt,
+          parsed.comment,
+          parsed.lessonTypeId,
+          priced.calculatedPrice,
+        ]
+      );
+      if (rows.length === 0) return res.status(404).json({ error: 'lesson not found' });
+
+      res.json(withLessonTypeName(rows[0], priced.lessonType));
+    } catch (err) {
+      console.error('[lesson-tracker] Failed to update lesson:', err);
+      res.status(500).json({ ok: false, error: 'failed to update lesson' });
     }
   });
 

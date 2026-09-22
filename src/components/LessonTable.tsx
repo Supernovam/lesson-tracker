@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback } from 'react';
 import type { ChangeEvent } from 'react';
 import {
+  Pencil,
   Trash2,
   Calendar,
   Clock,
@@ -35,6 +36,7 @@ type MultiSortState = {
 
 interface LessonTableProps {
   lessons: Lesson[];
+  onEdit: (lesson: Lesson) => void;
   onDelete: (id: string) => void;
 }
 
@@ -119,7 +121,7 @@ const initialMultiSort: MultiSortState = {
   primary: 'date',
 };
 
-export function LessonTable({ lessons, onDelete }: LessonTableProps) {
+export function LessonTable({ lessons, onEdit, onDelete }: LessonTableProps) {
   const [sort, setSort] = useState<MultiSortState>(initialMultiSort);
   const [selectedMonth, setSelectedMonth] = useState<MonthFilterValue>(getCurrentMonthValue);
 
@@ -239,7 +241,7 @@ export function LessonTable({ lessons, onDelete }: LessonTableProps) {
               <th scope="col" className={headerCellClass}>
                 Comment
               </th>
-              <th scope="col" className="w-12 px-4 py-3">
+              <th scope="col" className="w-24 px-4 py-3">
                 <span className="sr-only">Actions</span>
               </th>
             </tr>
@@ -268,14 +270,24 @@ export function LessonTable({ lessons, onDelete }: LessonTableProps) {
                     <span className="line-clamp-2">{lesson.comment || '—'}</span>
                   </td>
                   <td className="px-4 py-3">
-                    <button
-                      type="button"
-                      onClick={() => onDelete(lesson.id)}
-                      className="rounded p-1.5 text-slate-400 transition hover:bg-red-50 hover:text-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
-                      aria-label={`Delete lesson for ${lesson.studentName} on ${formatDisplayDate(lesson.date)}`}
-                    >
-                      <Trash2 className="h-4 w-4" aria-hidden />
-                    </button>
+                    <div className="flex items-center justify-end gap-1">
+                      <button
+                        type="button"
+                        onClick={() => onEdit(lesson)}
+                        className="rounded p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2"
+                        aria-label={`Edit lesson for ${lesson.studentName} on ${formatDisplayDate(lesson.date)}`}
+                      >
+                        <Pencil className="h-4 w-4" aria-hidden />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onDelete(lesson.id)}
+                        className="rounded p-1.5 text-slate-400 transition hover:bg-red-50 hover:text-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+                        aria-label={`Delete lesson for ${lesson.studentName} on ${formatDisplayDate(lesson.date)}`}
+                      >
+                        <Trash2 className="h-4 w-4" aria-hidden />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))

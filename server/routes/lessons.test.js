@@ -34,6 +34,23 @@ function pricingPool(lessonType = privateCourse) {
         ],
       };
     }
+    if (sql.includes('UPDATE lessons')) {
+      const [id, studentName, date, duration, comment, lessonTypeId, calculatedPrice] = params;
+      return {
+        rows: [
+          {
+            id,
+            studentName,
+            date,
+            duration,
+            comment,
+            createdAt: 1,
+            lessonTypeId,
+            calculatedPrice: String(calculatedPrice),
+          },
+        ],
+      };
+    }
     return { rows: [] };
   });
 }
@@ -188,6 +205,79 @@ describe('POST /api/lessons', () => {
       .post('/api/lessons')
       .send(validBody);
     expect(res.status).toBe(401);
+  });
+});
+
+describe('PUT /api/lessons/:id', () => {
+  it('recalculates the price and keeps the original id', async () => {
+    const pool = pricingPool();
+
+    const res = await request(appFor(pool))
+      .put('/api/lessons/lesson-1')
+      .send({ ...validBody, duration: 90, studentName: 'Alex B' });
+
+    expect(res.status).toBe(200);
+    // 90 minutes against a 19.00 / 45 minute type.
+    expect(res.body).toMatchObject({
+      id: 'lesson-1',
+      studentName: 'Alex B',
+      duration: 90,
+      lessonTypeId: 'type-private',
+      lessonTypeName: 'Private Course',
+      calculatedPrice: 38,
+    });
+
+    const update = queryFor(pool, 'UPDATE lessons');
+    expect(update.params[0]).toBe('lesson-1');
+    expect(update.params).toContain(38);
+  });
+
+  it('returns 404 when the lesson is gone', async () => {
+    const pool = createFakePool((sql) => {
+      if (sql.includes('FROM lesson_types')) return { rows: [privateCourse] };
+      return { rows: [] };
+    });
+
+    const res = await request(appFor(pool)).put('/api/lessons/missing').send(validBody);
+
+    expect(res.status).toBe(404);
+    expect(res.body.error).toMatch(/lesson not found/);
+  });
+
+  it('rejects a lesson type that does not exist', async () => {
+    const pool = pricingPool(null);
+
+    const res = await request(appFor(pool)).put('/api/lessons/lesson-1').send(validBody);
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/lessonTypeId is invalid/);
+    expect(queryFor(pool, 'UPDATE lessons')).toBeUndefined();
+  });
+
+  it('validates the body like create does', async () => {
+    const pool = pricingPool();
+
+    const res = await request(appFor(pool))
+      .put('/api/lessons/lesson-1')
+      .send({ ...validBody, studentName: '  ' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/studentName is required/);
+    expect(queryFor(pool, 'UPDATE lessons')).toBeUndefined();
+  });
+
+  it('requires authentication', async () => {
+    const res = await request(appFor(createFakePool(), { user: null }))
+      .put('/api/lessons/lesson-1')
+      .send(validBody);
+    expect(res.status).toBe(401);
+  });
+
+  it('reports 503 while the database is still connecting', async () => {
+    const res = await request(appFor(createFakePool(), { isDbReady: () => false }))
+      .put('/api/lessons/lesson-1')
+      .send(validBody);
+    expect(res.status).toBe(503);
   });
 });
 
