@@ -28,6 +28,7 @@ function toPayload(formData: LessonFormData) {
     duration: formData.duration,
     comment: formData.comment.trim(),
     lessonTypeId: formData.lessonTypeId.trim(),
+    schoolId: formData.schoolId.trim(),
   };
 }
 

@@ -3,8 +3,9 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { LessonsPage } from './LessonsPage';
 import type { Lesson } from '../types/lesson';
 import type { LessonType } from '../types/lessonType';
+import type { School } from '../types/school';
 
-const { lesson, lessonType, updateLesson, addLesson } = vi.hoisted(() => {
+const { lesson, lessonType, school, updateLesson, addLesson } = vi.hoisted(() => {
   const lesson: Lesson = {
     id: 'lesson-1',
     studentName: 'Alex',
@@ -14,7 +15,16 @@ const { lesson, lessonType, updateLesson, addLesson } = vi.hoisted(() => {
     createdAt: 1,
     lessonTypeId: 'private',
     lessonTypeName: 'Private Course',
+    schoolId: 'east',
+    schoolTitle: 'East Campus',
     calculatedPrice: 25.33,
+  };
+  const school: School = {
+    id: 'east',
+    title: 'East Campus',
+    address: 'Main St',
+    createdAt: 1,
+    updatedAt: 1,
   };
   const lessonType: LessonType = {
     id: 'private',
@@ -27,6 +37,7 @@ const { lesson, lessonType, updateLesson, addLesson } = vi.hoisted(() => {
   return {
     lesson,
     lessonType,
+    school,
     addLesson: vi.fn().mockResolvedValue(undefined),
     updateLesson: vi.fn().mockResolvedValue(undefined),
   };
@@ -44,6 +55,12 @@ vi.mock('../hooks/useLessonStorage', () => ({
 vi.mock('../hooks/useLessonTypeStorage', () => ({
   useLessonTypeStorage: () => ({
     lessonTypes: [lessonType],
+  }),
+}));
+
+vi.mock('../hooks/useSchoolStorage', () => ({
+  useSchoolStorage: () => ({
+    schools: [school],
   }),
 }));
 
@@ -73,6 +90,7 @@ describe('LessonsPage', () => {
       expect.objectContaining({
         studentName: 'Alex B',
         lessonTypeId: 'private',
+        schoolId: 'east',
         duration: 60,
         comment: 'Went well',
       })

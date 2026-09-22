@@ -27,4 +27,17 @@ export async function ensureSchema(pool) {
     ALTER TABLE lessons
       ADD COLUMN IF NOT EXISTS calculated_price numeric(10, 2)
   `);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS schools (
+      id text PRIMARY KEY,
+      title text NOT NULL UNIQUE,
+      address text NOT NULL,
+      created_at bigint NOT NULL,
+      updated_at bigint NOT NULL
+    );
+  `);
+  await pool.query(`
+    ALTER TABLE lessons
+      ADD COLUMN IF NOT EXISTS school_id text REFERENCES schools(id) ON DELETE RESTRICT
+  `);
 }

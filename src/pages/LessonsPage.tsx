@@ -3,11 +3,13 @@ import { LessonForm } from '../components/LessonForm';
 import { LessonTable } from '../components/LessonTable';
 import { useLessonStorage } from '../hooks/useLessonStorage';
 import { useLessonTypeStorage } from '../hooks/useLessonTypeStorage';
+import { useSchoolStorage } from '../hooks/useSchoolStorage';
 import type { Lesson, LessonFormData } from '../types/lesson';
 
 export function LessonsPage() {
   const { lessons, addLesson, updateLesson, deleteLesson } = useLessonStorage();
   const { lessonTypes } = useLessonTypeStorage();
+  const { schools } = useSchoolStorage();
   const [editingLesson, setEditingLesson] = useState<Lesson | null>(null);
 
   const handleSubmit = useCallback(
@@ -32,6 +34,7 @@ export function LessonsPage() {
       <section className="mb-10" aria-label={editingLesson ? 'Edit a lesson' : 'Add a new lesson'}>
         <LessonForm
           lessonTypes={lessonTypes}
+          schools={schools}
           editing={editingLesson}
           onSubmit={handleSubmit}
           onCancelEdit={() => setEditingLesson(null)}

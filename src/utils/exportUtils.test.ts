@@ -12,6 +12,10 @@ vi.mock('xlsx', () => ({
   writeFile: vi.fn(),
 }));
 
+function column(name: (typeof LessonExcelExporter.COLUMN_HEADERS)[number]) {
+  return LessonExcelExporter.COLUMN_HEADERS.indexOf(name);
+}
+
 const baseLesson = (overrides: Partial<Lesson> = {}): Lesson => ({
   id: 'id-1',
   studentName: 'Alice',
@@ -21,6 +25,8 @@ const baseLesson = (overrides: Partial<Lesson> = {}): Lesson => ({
   createdAt: 100,
   lessonTypeId: 'type-1',
   lessonTypeName: 'Private Course',
+  schoolId: 'school-1',
+  schoolTitle: 'East Campus',
   calculatedPrice: 19,
   ...overrides,
 });
@@ -36,7 +42,7 @@ describe('LessonExcelExporter', () => {
 
       const rows = LessonExcelExporter.buildDataRows(lessons, '0', null);
       expect(rows).toHaveLength(2);
-      expect(rows.map((r) => r[1])).toEqual(['Alice', 'Carol']);
+      expect(rows.map((r) => r[column('Student')])).toEqual(['Alice', 'Carol']);
     });
 
     it('exports all lessons when month filter is "all"', () => {
@@ -59,7 +65,7 @@ describe('LessonExcelExporter', () => {
         column: 'studentName',
         direction: 'asc',
       });
-      expect(rows.map((r) => r[1])).toEqual(['Amy', 'Zoe']);
+      expect(rows.map((r) => r[column('Student')])).toEqual(['Amy', 'Zoe']);
     });
   });
 
@@ -80,6 +86,7 @@ describe('LessonExcelExporter', () => {
     it('uses user-facing headers in table order', () => {
       expect([...LessonExcelExporter.COLUMN_HEADERS]).toEqual([
         'Lesson type',
+        'School',
         'Student',
         'Date',
         'Duration',
@@ -98,12 +105,25 @@ describe('LessonExcelExporter', () => {
         calculatedPrice: 50.4,
       });
       const row = LessonExcelExporter.mapLessonToDisplayRow(lesson);
-      expect(row).toEqual(['Present Course', 'Pat', '08.03.2025', '120 min', '50,40\u00A0€', '—']);
+      expect(row).toEqual([
+        'Present Course',
+        'East Campus',
+        'Pat',
+        '08.03.2025',
+        '120 min',
+        '50,40\u00A0€',
+        '—',
+      ]);
+    });
+
+    it('uses an em dash when a lesson has no school', () => {
+      const lesson = baseLesson({ schoolId: null, schoolTitle: null });
+      expect(LessonExcelExporter.mapLessonToDisplayRow(lesson)[column('School')]).toBe('—');
     });
 
     it('includes comment text when present', () => {
       const lesson = baseLesson({ comment: 'Great session' });
-      expect(LessonExcelExporter.mapLessonToDisplayRow(lesson)[5]).toBe('Great session');
+      expect(LessonExcelExporter.mapLessonToDisplayRow(lesson)[column('Comment')]).toBe('Great session');
     });
 
     it('adds a total row and no type breakdown to the workbook', () => {
@@ -129,7 +149,7 @@ describe('LessonExcelExporter', () => {
 
       const rows = LessonExcelExporter.buildWorkbookRows(lessons, 'all', null);
       expect(rows[0]).toEqual([...LessonExcelExporter.COLUMN_HEADERS]);
-      expect(rows).toContainEqual(['Total', '', '', '', '107,33\u00A0€', '']);
+      expect(rows).toContainEqual(['Total', '', '', '', '', '107,33\u00A0€', '']);
       expect(rows.some((row) => row[0] === 'Breakdown by lesson type')).toBe(false);
     });
   });

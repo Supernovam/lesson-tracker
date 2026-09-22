@@ -36,6 +36,8 @@ const lesson = {
   createdAt: 10,
   lessonTypeId: 'type-private',
   lessonTypeName: 'Private Course',
+  schoolId: 'school-east',
+  schoolTitle: 'East Campus',
   calculatedPrice: 25.33,
 };
 
@@ -45,6 +47,7 @@ const formData = {
   duration: 60,
   comment: '  Good  ',
   lessonTypeId: '  type-private  ',
+  schoolId: '  school-east  ',
 };
 
 describe('useLessonStorage', () => {
@@ -85,6 +88,7 @@ describe('useLessonStorage', () => {
       duration: 60,
       comment: 'Good',
       lessonTypeId: 'type-private',
+      schoolId: 'school-east',
     });
   });
 
@@ -149,6 +153,7 @@ describe('useLessonStorage', () => {
       studentName: 'Alex B',
       duration: 90,
       lessonTypeId: 'type-private',
+      schoolId: 'school-east',
     });
     expect(result.current.lessons).toHaveLength(1);
     expect(result.current.lessons[0]).toMatchObject({ studentName: 'Alex B', calculatedPrice: 38 });

@@ -29,6 +29,15 @@ vi.mock('./hooks/useLessonTypeStorage', () => ({
   }),
 }));
 
+vi.mock('./hooks/useSchoolStorage', () => ({
+  useSchoolStorage: () => ({
+    schools: [],
+    addSchool: vi.fn(),
+    updateSchool: vi.fn(),
+    deleteSchool: vi.fn(),
+  }),
+}));
+
 describe('App pages', () => {
   it('starts on the Lessons page and can switch to Lesson Types', () => {
     render(<App />);
@@ -40,5 +49,10 @@ describe('App pages', () => {
 
     expect(screen.getByRole('heading', { name: /add a lesson type/i })).toBeDefined();
     expect(screen.getByRole('heading', { name: /^lesson types$/i })).toBeDefined();
+
+    fireEvent.click(screen.getByRole('button', { name: /^schools$/i }));
+
+    expect(screen.getByRole('heading', { name: /add a school/i })).toBeDefined();
+    expect(screen.getByRole('heading', { name: /^schools$/i })).toBeDefined();
   });
 });

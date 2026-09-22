@@ -3,12 +3,14 @@ import type React from 'react';
 import { BookOpen } from 'lucide-react';
 import type { Lesson, LessonFormData } from '../types/lesson';
 import type { LessonType } from '../types/lessonType';
+import type { School } from '../types/school';
 import { parseDuration, validateLessonForm } from '../utils/validation';
 import { formatDuration, formatPrice, getTodayISO } from '../utils/format';
 import { calculateSessionPrice } from '../utils/pricing';
 
 interface LessonFormProps {
   lessonTypes: LessonType[];
+  schools: School[];
   editing?: Lesson | null;
   onSubmit: (data: LessonFormData) => void | Promise<void>;
   onCancelEdit?: () => void;
@@ -21,10 +23,12 @@ const initialFormState: LessonFormData = {
   duration: 0,
   comment: '',
   lessonTypeId: '',
+  schoolId: '',
 };
 
 export function LessonForm({
   lessonTypes,
+  schools,
   editing = null,
   onSubmit,
   onCancelEdit,
@@ -43,6 +47,7 @@ export function LessonForm({
         duration: editing.duration,
         comment: editing.comment,
         lessonTypeId: editing.lessonTypeId ?? '',
+        schoolId: editing.schoolId ?? '',
       });
       setDurationInput(String(editing.duration));
     } else {
@@ -75,6 +80,7 @@ export function LessonForm({
             date: getTodayISO(),
             duration: retainedType?.baseDurationMinutes ?? 0,
             lessonTypeId: formData.lessonTypeId,
+            schoolId: formData.schoolId,
           });
           setDurationInput(retainedType ? String(retainedType.baseDurationMinutes) : '');
         }
@@ -204,6 +210,35 @@ export function LessonForm({
           {errors.lessonTypeId && (
             <p id="lesson-type-error" className="mt-1 text-sm text-red-600" role="alert">
               {errors.lessonTypeId}
+            </p>
+          )}
+        </div>
+
+        <div className="sm:col-span-2">
+          <label htmlFor="lesson-school" className="mb-1.5 block text-sm font-medium text-slate-700">
+            School
+          </label>
+          <select
+            id="lesson-school"
+            value={formData.schoolId}
+            onChange={(e: React.ChangeEvent<HTMLSelectElement>) => updateField('schoolId', e.target.value)}
+            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-800 focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+            aria-invalid={Boolean(errors.schoolId)}
+            aria-describedby={errors.schoolId ? 'lesson-school-error' : undefined}
+            disabled={schools.length === 0}
+          >
+            <option value="">
+              {schools.length === 0 ? 'Add a school first' : 'Select a school'}
+            </option>
+            {schools.map((school) => (
+              <option key={school.id} value={school.id}>
+                {school.title}
+              </option>
+            ))}
+          </select>
+          {errors.schoolId && (
+            <p id="lesson-school-error" className="mt-1 text-sm text-red-600" role="alert">
+              {errors.schoolId}
             </p>
           )}
         </div>
