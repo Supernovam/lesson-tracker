@@ -1,6 +1,6 @@
 import type { Lesson } from '../types/lesson';
 
-export type SortableColumn = 'studentName' | 'date';
+export type SortableColumn = 'studentName' | 'date' | 'schoolTitle';
 export type SortDirection = 'asc' | 'desc';
 export type SortState = { column: SortableColumn; direction: SortDirection } | null;
 
@@ -25,6 +25,8 @@ export function sortLessons(
 
     if (column === 'studentName') {
       cmp = a.studentName.localeCompare(b.studentName, undefined, { sensitivity: 'base' });
+    } else if (column === 'schoolTitle') {
+      cmp = (a.schoolTitle ?? '').localeCompare(b.schoolTitle ?? '', undefined, { sensitivity: 'base' });
     } else {
       const dateCmp = a.date.localeCompare(b.date);
       if (dateCmp !== 0) {

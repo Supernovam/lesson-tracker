@@ -11,12 +11,12 @@ function appFor(pool, options = {}) {
 function writePool() {
   return createFakePool((sql, params) => {
     if (sql.includes('INSERT INTO schools')) {
-      const [id, title, address, createdAt, updatedAt] = params;
-      return { rows: [{ id, title, address, createdAt, updatedAt }] };
+      const [id, title, billingName, address, createdAt, updatedAt] = params;
+      return { rows: [{ id, title, billingName, address, createdAt, updatedAt }] };
     }
     if (sql.includes('UPDATE schools')) {
-      const [id, title, address, updatedAt] = params;
-      return { rows: [{ id, title, address, createdAt: 1, updatedAt }] };
+      const [id, title, billingName, address, updatedAt] = params;
+      return { rows: [{ id, title, billingName, address, createdAt: 1, updatedAt }] };
     }
     return { rows: [] };
   });
@@ -30,7 +30,11 @@ function failingPool(code) {
   });
 }
 
-const validBody = { title: 'East Campus', address: 'Main St\n10115 Berlin' };
+const validBody = {
+  title: 'East Campus',
+  billingName: 'East Campus GmbH',
+  address: 'Main St\n10115 Berlin',
+};
 
 describe('GET /api/schools', () => {
   it('returns schools ordered by title', async () => {
@@ -39,6 +43,7 @@ describe('GET /api/schools', () => {
         {
           id: 'school-1',
           title: 'East Campus',
+          billingName: 'East Campus GmbH',
           address: 'Main St',
           createdAt: 1,
           updatedAt: 2,
@@ -60,16 +65,21 @@ describe('GET /api/schools', () => {
 });
 
 describe('POST /api/schools', () => {
-  it('creates a school and trims the title and address', async () => {
+  it('creates a school and trims the title, billing name, and address', async () => {
     const pool = writePool();
 
     const res = await request(appFor(pool))
       .post('/api/schools')
-      .send({ title: '  East Campus  ', address: '  Main St\n10115 Berlin  ' });
+      .send({
+        title: '  East Campus  ',
+        billingName: '  East Campus GmbH  ',
+        address: '  Main St\n10115 Berlin  ',
+      });
 
     expect(res.status).toBe(201);
     expect(res.body).toMatchObject({
       title: 'East Campus',
+      billingName: 'East Campus GmbH',
       address: 'Main St\n10115 Berlin',
     });
     expect(res.body.createdAt).toBe(res.body.updatedAt);
@@ -77,6 +87,7 @@ describe('POST /api/schools', () => {
 
   it.each([
     ['a blank title', { title: '   ' }, /title is required/],
+    ['a blank billing name', { billingName: '   ' }, /billingName is required/],
     ['a blank address', { address: '  \n  ' }, /address is required/],
   ])('rejects %s', async (_label, override, expected) => {
     const pool = writePool();
@@ -102,10 +113,15 @@ describe('PUT /api/schools/:id', () => {
 
     const res = await request(appFor(pool))
       .put('/api/schools/school-1')
-      .send({ title: 'West Campus', address: 'Side St' });
+      .send({ title: 'West Campus', billingName: 'West Campus GmbH', address: 'Side St' });
 
     expect(res.status).toBe(200);
-    expect(res.body).toMatchObject({ id: 'school-1', title: 'West Campus', address: 'Side St' });
+    expect(res.body).toMatchObject({
+      id: 'school-1',
+      title: 'West Campus',
+      billingName: 'West Campus GmbH',
+      address: 'Side St',
+    });
   });
 
   it('returns 404 when the school is gone', async () => {

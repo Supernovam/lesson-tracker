@@ -1,6 +1,7 @@
 export interface School {
   id: string;
   title: string;
+  billingName: string;
   address: string;
   createdAt: number;
   updatedAt: number;
@@ -8,6 +9,7 @@ export interface School {
 
 export interface SchoolFormData {
   title: string;
+  billingName: string;
   address: string;
 }
 

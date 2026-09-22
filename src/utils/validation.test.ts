@@ -156,15 +156,20 @@ describe('validateLessonTypeForm', () => {
 });
 
 describe('validateSchoolForm', () => {
-  it('returns valid for a title and address', () => {
-    const result = validateSchoolForm({ title: 'East Campus', address: 'Main St\n10115 Berlin' });
+  it('returns valid for a title, billing name, and address', () => {
+    const result = validateSchoolForm({
+      title: 'East Campus',
+      billingName: 'East Campus GmbH',
+      address: 'Main St\n10115 Berlin',
+    });
     expect(result.valid).toBe(true);
   });
 
-  it('requires a title and an address', () => {
-    const result = validateSchoolForm({ title: '  ', address: '\n' });
+  it('requires a title, billing name, and address', () => {
+    const result = validateSchoolForm({ title: '  ', billingName: '\n', address: '\n' });
     expect(result.valid).toBe(false);
     expect(result.errors.title).toBe('Title is required');
+    expect(result.errors.billingName).toBe('Billing name is required');
     expect(result.errors.address).toBe('Address is required');
   });
 });

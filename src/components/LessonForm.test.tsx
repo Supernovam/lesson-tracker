@@ -28,6 +28,7 @@ const schools: School[] = [
   {
     id: 'east',
     title: 'East Campus',
+    billingName: 'East Campus GmbH',
     address: 'Main St\n10115 Berlin',
     createdAt: 1,
     updatedAt: 1,

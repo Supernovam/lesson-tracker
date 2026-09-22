@@ -20,11 +20,10 @@ import { formatDisplayDate, formatDuration, formatPrice } from '../utils/format'
 import { LessonExcelExporter } from '../utils/exportUtils';
 import {
   type SortState,
+  type SortableColumn,
+  type SortDirection,
   getLessonsForDisplay,
 } from '../utils/lessonTableData';
-
-type SortableColumn = 'studentName' | 'date';
-type SortDirection = 'asc' | 'desc';
 
 /** Per-column direction; `null` means that column is not part of the active sort. */
 type ColumnSort = SortDirection | null;
@@ -32,6 +31,7 @@ type ColumnSort = SortDirection | null;
 type MultiSortState = {
   studentName: ColumnSort;
   date: ColumnSort;
+  schoolTitle: ColumnSort;
   primary: SortableColumn;
 };
 
@@ -67,7 +67,7 @@ function getCurrentMonthValue(): MonthFilterValue {
 const headerButtonClass =
   'flex items-center gap-1.5 transition hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2 rounded';
 const headerCellClass =
-  'px-4 py-3 text-xs font-semibold tracking-wider text-slate-600';
+  'px-2 py-3 text-xs font-semibold tracking-wider text-slate-600';
 
 interface SortableHeaderProps {
   column: SortableColumn;
@@ -119,6 +119,7 @@ function SortableHeader({
 const initialMultiSort: MultiSortState = {
   studentName: null,
   date: null,
+  schoolTitle: null,
   primary: 'date',
 };
 
@@ -203,9 +204,19 @@ export function LessonTable({ lessons, onEdit, onDelete }: LessonTableProps) {
       </div>
       <div className="overflow-x-auto">
         <table
-          className="w-full min-w-[860px] border-collapse text-left"
+          className="w-full table-fixed border-collapse text-left"
           aria-label="Lesson history"
         >
+          <colgroup>
+            <col className="w-[14%]" />
+            <col className="w-[14%]" />
+            <col className="w-[14%]" />
+            <col className="w-[7.25rem]" />
+            <col className="w-[7.5rem]" />
+            <col className="w-[5.5rem]" />
+            <col />
+            <col className="w-16" />
+          </colgroup>
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50/80">
               <th scope="col" className={headerCellClass}>
@@ -213,11 +224,14 @@ export function LessonTable({ lessons, onEdit, onDelete }: LessonTableProps) {
                   <Tags className="h-4 w-4" aria-hidden /> Type
                 </span>
               </th>
-              <th scope="col" className={headerCellClass}>
-                <span className="flex items-center gap-1.5">
-                  <School className="h-4 w-4" aria-hidden /> School
-                </span>
-              </th>
+              <SortableHeader
+                column="schoolTitle"
+                label="School"
+                ariaSortLabel="school"
+                direction={sort.schoolTitle}
+                onSort={handleSort}
+                icon={School}
+              />
               <SortableHeader
                 column="studentName"
                 label="Student"
@@ -247,7 +261,7 @@ export function LessonTable({ lessons, onEdit, onDelete }: LessonTableProps) {
               <th scope="col" className={headerCellClass}>
                 Comment
               </th>
-              <th scope="col" className="w-24 px-4 py-3">
+              <th scope="col" className="w-16 px-1 py-3">
                 <span className="sr-only">Actions</span>
               </th>
             </tr>
@@ -265,18 +279,18 @@ export function LessonTable({ lessons, onEdit, onDelete }: LessonTableProps) {
                   key={lesson.id}
                   className="border-b border-slate-100 transition hover:bg-slate-50/50 last:border-b-0"
                 >
-                  <td className="px-4 py-3 text-slate-600">{lesson.lessonTypeName || '—'}</td>
-                  <td className="px-4 py-3 text-slate-600">{lesson.schoolTitle || '—'}</td>
-                  <td className="px-4 py-3 font-medium text-slate-800">{lesson.studentName}</td>
-                  <td className="px-4 py-3 text-slate-600">{formatDisplayDate(lesson.date)}</td>
-                  <td className="px-4 py-3 text-slate-600">{formatDuration(lesson.duration)}</td>
-                  <td className="px-4 py-3 text-slate-600">
+                  <td className="truncate px-2 py-3 text-slate-600">{lesson.lessonTypeName || '—'}</td>
+                  <td className="truncate px-2 py-3 text-slate-600">{lesson.schoolTitle || '—'}</td>
+                  <td className="truncate px-2 py-3 font-medium text-slate-800">{lesson.studentName}</td>
+                  <td className="overflow-hidden whitespace-nowrap px-2 py-3 text-slate-600">{formatDisplayDate(lesson.date)}</td>
+                  <td className="overflow-hidden whitespace-nowrap px-2 py-3 text-slate-600">{formatDuration(lesson.duration)}</td>
+                  <td className="overflow-hidden whitespace-nowrap px-2 py-3 text-slate-600">
                     {lesson.calculatedPrice == null ? '—' : formatPrice(lesson.calculatedPrice)}
                   </td>
-                  <td className="max-w-[200px] px-4 py-3 text-slate-600">
+                  <td className="px-2 py-3 text-slate-600">
                     <span className="line-clamp-2">{lesson.comment || '—'}</span>
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-1 py-3">
                     <div className="flex items-center justify-end gap-1">
                       <button
                         type="button"

@@ -12,6 +12,7 @@ interface SchoolFormProps {
 
 const emptyFormState: SchoolFormData = {
   title: '',
+  billingName: '',
   address: '',
 };
 
@@ -23,7 +24,11 @@ export function SchoolForm({ editing, onSubmit, onCancelEdit }: SchoolFormProps)
 
   useEffect(() => {
     if (editing) {
-      setFormData({ title: editing.title, address: editing.address });
+      setFormData({
+        title: editing.title,
+        billingName: editing.billingName,
+        address: editing.address,
+      });
     } else {
       setFormData(emptyFormState);
     }
@@ -87,11 +92,38 @@ export function SchoolForm({ editing, onSubmit, onCancelEdit }: SchoolFormProps)
             className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-800 placeholder-slate-400 focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
             placeholder="e.g. East Campus"
             aria-invalid={Boolean(errors.title)}
-            aria-describedby={errors.title ? 'school-title-error' : undefined}
+            aria-describedby={errors.title ? 'school-title-error school-title-hint' : 'school-title-hint'}
           />
+          <p id="school-title-hint" className="mt-1 text-sm text-slate-500">
+            Shown in the lesson list and export.
+          </p>
           {errors.title && (
             <p id="school-title-error" className="mt-1 text-sm text-red-600" role="alert">
               {errors.title}
+            </p>
+          )}
+        </div>
+
+        <div>
+          <label htmlFor="school-billing-name" className="mb-1.5 block text-sm font-medium text-slate-700">
+            Billing name
+          </label>
+          <input
+            id="school-billing-name"
+            type="text"
+            value={formData.billingName}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateField('billingName', e.target.value)}
+            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-800 placeholder-slate-400 focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+            placeholder="e.g. East Campus GmbH"
+            aria-invalid={Boolean(errors.billingName)}
+            aria-describedby={errors.billingName ? 'school-billing-name-error school-billing-name-hint' : 'school-billing-name-hint'}
+          />
+          <p id="school-billing-name-hint" className="mt-1 text-sm text-slate-500">
+            Printed as the invoice recipient.
+          </p>
+          {errors.billingName && (
+            <p id="school-billing-name-error" className="mt-1 text-sm text-red-600" role="alert">
+              {errors.billingName}
             </p>
           )}
         </div>

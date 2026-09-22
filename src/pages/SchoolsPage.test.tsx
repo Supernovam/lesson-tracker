@@ -30,6 +30,7 @@ function errorResponse(body: string, status: number, statusText = 'Conflict') {
 const eastCampus = {
   id: 'school-east',
   title: 'East Campus',
+  billingName: 'East Campus GmbH',
   address: 'Main St\n10115 Berlin',
   createdAt: 1,
   updatedAt: 1,
@@ -63,13 +64,16 @@ describe('SchoolsPage', () => {
     expect(screen.getByRole('button', { name: /delete east campus/i })).toBeDefined();
   });
 
-  it('trims the title and address before creating a school', async () => {
+  it('trims the title, billing name, and address before creating a school', async () => {
     mockedApiFetch.mockResolvedValueOnce(jsonResponse([]));
     render(<SchoolsPage />);
 
     expect(await screen.findByRole('status', { name: /no schools recorded/i })).toBeDefined();
 
     fireEvent.change(screen.getByLabelText(/^title$/i), { target: { value: '  East Campus  ' } });
+    fireEvent.change(screen.getByLabelText(/^billing name$/i), {
+      target: { value: '  East Campus GmbH  ' },
+    });
     fireEvent.change(screen.getByLabelText(/^address$/i), {
       target: { value: '  Main St\n10115 Berlin  ' },
     });
@@ -84,6 +88,7 @@ describe('SchoolsPage', () => {
       expect(options?.method).toBe('POST');
       expect(JSON.parse(options?.body as string)).toEqual({
         title: 'East Campus',
+        billingName: 'East Campus GmbH',
         address: 'Main St\n10115 Berlin',
       });
     });

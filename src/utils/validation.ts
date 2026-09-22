@@ -104,6 +104,10 @@ export function validateSchoolForm(data: SchoolFormData): SchoolValidationResult
     errors.title = 'Title is required';
   }
 
+  if (!data.billingName.trim()) {
+    errors.billingName = 'Billing name is required';
+  }
+
   if (!data.address.trim()) {
     errors.address = 'Address is required';
   }
