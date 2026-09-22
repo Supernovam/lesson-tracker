@@ -31,10 +31,24 @@ export async function ensureSchema(pool) {
     CREATE TABLE IF NOT EXISTS schools (
       id text PRIMARY KEY,
       title text NOT NULL UNIQUE,
+      billing_name text NOT NULL,
       address text NOT NULL,
       created_at bigint NOT NULL,
       updated_at bigint NOT NULL
     );
+  `);
+  await pool.query(`
+    ALTER TABLE schools
+      ADD COLUMN IF NOT EXISTS billing_name text
+  `);
+  await pool.query(`
+    UPDATE schools
+    SET billing_name = title
+    WHERE billing_name IS NULL
+  `);
+  await pool.query(`
+    ALTER TABLE schools
+      ALTER COLUMN billing_name SET NOT NULL
   `);
   await pool.query(`
     ALTER TABLE lessons

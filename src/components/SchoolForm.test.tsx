@@ -6,16 +6,18 @@ import type { School } from '../types/school';
 const editingSchool: School = {
   id: 'school-1',
   title: 'East Campus',
+  billingName: 'East Campus GmbH',
   address: 'Main St\n10115 Berlin',
   createdAt: 1,
   updatedAt: 1,
 };
 
 describe('SchoolForm', () => {
-  it('requires a title and an address', () => {
+  it('requires a title, billing name, and address', () => {
     render(<SchoolForm editing={null} onSubmit={vi.fn()} onCancelEdit={vi.fn()} />);
     fireEvent.click(screen.getByRole('button', { name: /save school/i }));
     expect(screen.getByText('Title is required')).toBeDefined();
+    expect(screen.getByText('Billing name is required')).toBeDefined();
     expect(screen.getByText('Address is required')).toBeDefined();
   });
 
@@ -24,16 +26,22 @@ describe('SchoolForm', () => {
     render(<SchoolForm editing={editingSchool} onSubmit={onSubmit} onCancelEdit={vi.fn()} />);
 
     expect((screen.getByLabelText(/^title$/i) as HTMLInputElement).value).toBe('East Campus');
+    expect((screen.getByLabelText(/^billing name$/i) as HTMLInputElement).value).toBe(
+      'East Campus GmbH'
+    );
     expect((screen.getByLabelText(/^address$/i) as HTMLTextAreaElement).value).toBe(
       'Main St\n10115 Berlin'
     );
 
-    fireEvent.change(screen.getByLabelText(/^title$/i), { target: { value: 'West Campus' } });
+    fireEvent.change(screen.getByLabelText(/^billing name$/i), {
+      target: { value: 'West Campus GmbH' },
+    });
     fireEvent.click(screen.getByRole('button', { name: /update school/i }));
 
     await waitFor(() =>
       expect(onSubmit).toHaveBeenCalledWith({
-        title: 'West Campus',
+        title: 'East Campus',
+        billingName: 'West Campus GmbH',
         address: 'Main St\n10115 Berlin',
       })
     );

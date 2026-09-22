@@ -24,6 +24,7 @@ function errorFromResponse(text: string, status: number, statusText: string): Er
 function toPayload(formData: SchoolFormData) {
   return {
     title: formData.title.trim(),
+    billingName: formData.billingName.trim(),
     address: formData.address.trim(),
   };
 }

@@ -22,6 +22,7 @@ const { lesson, lessonType, school, updateLesson, addLesson } = vi.hoisted(() =>
   const school: School = {
     id: 'east',
     title: 'East Campus',
+    billingName: 'East Campus GmbH',
     address: 'Main St',
     createdAt: 1,
     updatedAt: 1,

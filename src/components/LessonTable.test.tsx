@@ -106,6 +106,43 @@ describe('LessonTable', () => {
     expect(rows[2].textContent).toContain('Alice');
   });
 
+  it('sorts by school ascending, with lessons that have no school first', () => {
+    const lessons: Lesson[] = [
+      createLesson({ id: '1', studentName: 'Cara', date: '2025-01-01', schoolTitle: 'West' }),
+      createLesson({ id: '2', studentName: 'Amy', date: '2025-01-02', schoolTitle: null }),
+      createLesson({ id: '3', studentName: 'Ben', date: '2025-01-03', schoolTitle: 'East' }),
+    ];
+
+    render(<LessonTable lessons={lessons} onDelete={vi.fn()} onEdit={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /sort by school ascending/i }));
+
+    const rows = screen.getAllByRole('row').slice(1);
+    expect(rows.map((row) => row.textContent)).toEqual([
+      expect.stringContaining('Amy'),
+      expect.stringContaining('Ben'),
+      expect.stringContaining('Cara'),
+    ]);
+  });
+
+  it('sorts by school descending when the School header is clicked twice', () => {
+    const lessons: Lesson[] = [
+      createLesson({ id: '1', studentName: 'Cara', date: '2025-01-01', schoolTitle: 'West' }),
+      createLesson({ id: '2', studentName: 'Amy', date: '2025-01-02', schoolTitle: 'East' }),
+      createLesson({ id: '3', studentName: 'Ben', date: '2025-01-03', schoolTitle: 'North' }),
+    ];
+
+    render(<LessonTable lessons={lessons} onDelete={vi.fn()} onEdit={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /sort by school ascending/i }));
+    fireEvent.click(screen.getByRole('button', { name: /sort by school descending/i }));
+
+    const rows = screen.getAllByRole('row').slice(1);
+    expect(rows[0].textContent).toContain('Cara');
+    expect(rows[1].textContent).toContain('Ben');
+    expect(rows[2].textContent).toContain('Amy');
+  });
+
   it('sorts by date ascending when Date header is clicked', () => {
     const lessons: Lesson[] = [
       createLesson({ id: '1', studentName: 'Same', date: '2025-03-15' }),

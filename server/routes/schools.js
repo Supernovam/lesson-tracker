@@ -5,6 +5,7 @@ import { requireAuth } from '../auth.js';
 const SCHOOL_RETURNING = `
   id,
   title,
+  billing_name AS "billingName",
   address,
   created_at AS "createdAt",
   updated_at AS "updatedAt"
@@ -20,12 +21,14 @@ function isForeignKeyViolation(err) {
 
 function parseSchoolBody(body) {
   const title = typeof body.title === 'string' ? body.title.trim() : '';
+  const billingName = typeof body.billingName === 'string' ? body.billingName.trim() : '';
   const address = typeof body.address === 'string' ? body.address.trim() : '';
 
   if (!title) return { error: 'title is required' };
+  if (!billingName) return { error: 'billingName is required' };
   if (!address) return { error: 'address is required' };
 
-  return { title, address };
+  return { title, billingName, address };
 }
 
 export function createSchoolsRouter({ pool, isDbReady }) {
@@ -58,11 +61,11 @@ export function createSchoolsRouter({ pool, isDbReady }) {
     try {
       const { rows } = await pool.query(
         `
-          INSERT INTO schools (id, title, address, created_at, updated_at)
-          VALUES ($1, $2, $3, $4, $5)
+          INSERT INTO schools (id, title, billing_name, address, created_at, updated_at)
+          VALUES ($1, $2, $3, $4, $5, $6)
           RETURNING ${SCHOOL_RETURNING}
         `,
-        [id, parsed.title, parsed.address, now, now]
+        [id, parsed.title, parsed.billingName, parsed.address, now, now]
       );
       res.status(201).json(rows[0]);
     } catch (err) {
@@ -88,11 +91,11 @@ export function createSchoolsRouter({ pool, isDbReady }) {
       const { rows } = await pool.query(
         `
           UPDATE schools
-          SET title = $2, address = $3, updated_at = $4
+          SET title = $2, billing_name = $3, address = $4, updated_at = $5
           WHERE id = $1
           RETURNING ${SCHOOL_RETURNING}
         `,
-        [id, parsed.title, parsed.address, updatedAt]
+        [id, parsed.title, parsed.billingName, parsed.address, updatedAt]
       );
       if (rows.length === 0) return res.status(404).json({ error: 'school not found' });
       res.json(rows[0]);

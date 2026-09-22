@@ -32,6 +32,9 @@ export function SchoolTable({ schools, onEdit, onDelete }: SchoolTableProps) {
                 Title
               </th>
               <th scope="col" className={headerCellClass}>
+                Billing name
+              </th>
+              <th scope="col" className={headerCellClass}>
                 Address
               </th>
               <th scope="col" className="w-24 px-4 py-3">
@@ -46,6 +49,7 @@ export function SchoolTable({ schools, onEdit, onDelete }: SchoolTableProps) {
                 className="border-b border-slate-100 transition hover:bg-slate-50/50 last:border-b-0"
               >
                 <td className="px-4 py-3 font-medium text-slate-800">{school.title}</td>
+                <td className="px-4 py-3 text-slate-600">{school.billingName}</td>
                 <td className="whitespace-pre-line px-4 py-3 text-slate-600">{school.address}</td>
                 <td className="px-4 py-3">
                   <div className="flex items-center justify-end gap-1">

@@ -30,6 +30,7 @@ function errorResponse(body: string, status: number, statusText = 'Conflict') {
 const eastCampus = {
   id: 'school-east',
   title: 'East Campus',
+  billingName: 'East Campus GmbH',
   address: 'Main St\n10115 Berlin',
   createdAt: 1,
   updatedAt: 1,
@@ -37,6 +38,7 @@ const eastCampus = {
 
 const formData = {
   title: '  East Campus  ',
+  billingName: '  East Campus GmbH  ',
   address: '  Main St\n10115 Berlin  ',
 };
 
@@ -46,7 +48,7 @@ describe('useSchoolStorage', () => {
     mockedApiFetch.mockResolvedValue(jsonResponse([]));
   });
 
-  it('posts a trimmed title and address when creating', async () => {
+  it('posts a trimmed title, billing name, and address when creating', async () => {
     const { result } = renderHook(() => useSchoolStorage());
     await waitFor(() => expect(mockedApiFetch).toHaveBeenCalled());
 
@@ -61,12 +63,13 @@ describe('useSchoolStorage', () => {
     expect(options?.method).toBe('POST');
     expect(JSON.parse(options?.body as string)).toEqual({
       title: 'East Campus',
+      billingName: 'East Campus GmbH',
       address: 'Main St\n10115 Berlin',
     });
     expect(result.current.schools).toHaveLength(1);
   });
 
-  it('puts a trimmed title and address when updating', async () => {
+  it('puts a trimmed title, billing name, and address when updating', async () => {
     mockedApiFetch.mockResolvedValueOnce(jsonResponse([eastCampus]));
     const { result } = renderHook(() => useSchoolStorage());
     await waitFor(() => expect(result.current.schools).toHaveLength(1));
@@ -82,6 +85,7 @@ describe('useSchoolStorage', () => {
     expect(options?.method).toBe('PUT');
     expect(JSON.parse(options?.body as string)).toEqual({
       title: 'East Campus',
+      billingName: 'East Campus GmbH',
       address: 'Main St\n10115 Berlin',
     });
   });
