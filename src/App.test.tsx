@@ -14,6 +14,7 @@ vi.mock('./hooks/useAuth', () => ({
 vi.mock('./hooks/useLessonStorage', () => ({
   useLessonStorage: () => ({
     lessons: [],
+    status: 'ready',
     addLesson: vi.fn(),
     updateLesson: vi.fn(),
     deleteLesson: vi.fn(),
@@ -38,8 +39,24 @@ vi.mock('./hooks/useSchoolStorage', () => ({
   }),
 }));
 
+vi.mock('./hooks/useInvoiceSettings', () => ({
+  useInvoiceSettings: () => ({
+    settings: null,
+    status: 'missing',
+  }),
+}));
+
+vi.mock('./hooks/useIssuedInvoices', () => ({
+  useIssuedInvoices: () => ({
+    invoices: [],
+    nextNumber: 1,
+    status: 'ready',
+    issue: vi.fn(),
+  }),
+}));
+
 describe('App pages', () => {
-  it('starts on the Lessons page and can switch to Lesson Types', () => {
+  it('starts on the Lessons page and can switch to Lesson Types, Schools, and Invoices', () => {
     render(<App />);
 
     expect(screen.getByRole('heading', { name: /log a lesson/i })).toBeDefined();
@@ -54,5 +71,9 @@ describe('App pages', () => {
 
     expect(screen.getByRole('heading', { name: /add a school/i })).toBeDefined();
     expect(screen.getByRole('heading', { name: /^schools$/i })).toBeDefined();
+
+    fireEvent.click(screen.getByRole('button', { name: /^invoices$/i }));
+
+    expect(screen.getByRole('heading', { name: /^invoices$/i })).toBeDefined();
   });
 });

@@ -24,6 +24,8 @@ import { ensureSchema } from './schema.js';
 import { createLessonsRouter } from './routes/lessons.js';
 import { createLessonTypesRouter } from './routes/lessonTypes.js';
 import { createSchoolsRouter } from './routes/schools.js';
+import { createInvoiceSettingsRouter } from './routes/invoiceSettings.js';
+import { createIssuedInvoicesRouter } from './routes/issuedInvoices.js';
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 dotenv.config({ path: path.join(projectRoot, '.env') });
@@ -353,6 +355,8 @@ const isDbReady = () => dbReady;
 app.use('/api/lessons', createLessonsRouter({ pool, isDbReady }));
 app.use('/api/lesson-types', createLessonTypesRouter({ pool, isDbReady }));
 app.use('/api/schools', createSchoolsRouter({ pool, isDbReady }));
+app.use('/api/invoice-settings', createInvoiceSettingsRouter({ pool, isDbReady }));
+app.use('/api/issued-invoices', createIssuedInvoicesRouter({ pool, isDbReady }));
 
 // Accept traffic immediately so Render health checks can succeed while DB connects.
 startServer();

@@ -6,14 +6,24 @@ import express from 'express';
  */
 export function createFakePool(handler) {
   const calls = [];
-  return {
-    calls,
-    query: async (sql, params) => {
-      calls.push({ sql, params });
-      const result = await handler?.(sql, params);
-      return result ?? { rows: [] };
-    },
+  const query = async (sql, params) => {
+    calls.push({ sql, params });
+    const result = await handler?.(sql, params);
+    return result ?? { rows: [] };
   };
+  const pool = {
+    calls,
+    released: 0,
+    query,
+    // Checked-out clients share `calls`, so transaction statements show up in order.
+    connect: async () => ({
+      query,
+      release: () => {
+        pool.released += 1;
+      },
+    }),
+  };
+  return pool;
 }
 
 /**

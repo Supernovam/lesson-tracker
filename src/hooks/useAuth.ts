@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { apiFetch } from '../api/config';
+import { apiFetch, isAbortError } from '../api/config';
 
 export type AuthUser = {
   email: string;
@@ -54,13 +54,7 @@ export function useAuth() {
     if (readAuthQueryError()) clearAuthQuery();
 
     refresh(controller.signal).catch((err) => {
-      const maybeName =
-        err instanceof Error
-          ? err.name
-          : typeof err === 'object' && err !== null && 'name' in err
-            ? (err as { name?: unknown }).name
-            : undefined;
-      if (maybeName === 'AbortError') return;
+      if (isAbortError(err)) return;
       if (!isMounted) return;
       console.error(err);
       setUser(null);

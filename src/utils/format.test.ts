@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { formatDisplayDate, getTodayISO, formatDuration, formatPrice } from './format';
+import { formatDisplayDate, getTodayISO, formatDuration, formatPrice, formatInvoicePrice } from './format';
 
 describe('formatDisplayDate', () => {
   it('formats YYYY-MM-DD to European style DD.MM.YYYY', () => {
@@ -43,5 +43,13 @@ describe('formatPrice', () => {
     expect(formatPrice(19)).toBe('19,00\u00A0€');
     expect(formatPrice(25.33)).toBe('25,33\u00A0€');
     expect(formatPrice(63)).toBe('63,00\u00A0€');
+  });
+});
+
+describe('formatInvoicePrice', () => {
+  it('formats euro amounts without a space before the symbol', () => {
+    expect(formatInvoicePrice(19)).toBe('19,00€');
+    expect(formatInvoicePrice(25.33)).toBe('25,33€');
+    expect(formatInvoicePrice(1519)).toBe('1.519,00€');
   });
 });

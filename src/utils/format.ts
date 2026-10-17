@@ -47,3 +47,15 @@ const priceFormatter = new Intl.NumberFormat('de-DE', {
 export function formatPrice(amount: number): string {
   return priceFormatter.format(amount);
 }
+
+const invoicePriceFormatter = new Intl.NumberFormat('de-DE', {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+
+/**
+ * Invoice table amounts match the Honorarrechnung layout (e.g. "22,67€").
+ */
+export function formatInvoicePrice(amount: number): string {
+  return `${invoicePriceFormatter.format(amount)}€`;
+}
