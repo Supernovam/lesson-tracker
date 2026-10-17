@@ -32,9 +32,8 @@ const secondaryButtonClass =
 const primaryButtonClass =
   'inline-flex items-center gap-2 rounded-md bg-slate-800 px-3 py-2 text-sm font-medium text-white transition hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-400 disabled:cursor-not-allowed disabled:opacity-50';
 
-// TODO: decide billed-period default before committing invoice export.
-// Current calendar month is a stand-in; leftover classes from after the previous
-// invoice (often the prior month) still need a manual From date.
+// The billed period defaults to the current calendar month. Leftover classes from after
+// the previous invoice (often the prior month) need a manual From date.
 
 function InvoicePreviewTable({
   invoice,
