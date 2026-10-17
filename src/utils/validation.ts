@@ -8,11 +8,6 @@ const MAX_DURATION = 9999;
 export function validateLessonForm(data: LessonFormData): LessonValidationResult {
   const errors: LessonValidationResult['errors'] = {};
 
-  const trimmedName = data.studentName.trim();
-  if (!trimmedName) {
-    errors.studentName = 'Student name is required';
-  }
-
   if (!data.date.trim()) {
     errors.date = 'Date is required';
   } else {

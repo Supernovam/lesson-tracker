@@ -3,7 +3,11 @@ import { renderHook, act, waitFor } from '@testing-library/react';
 import { useLessonTypeStorage } from './useLessonTypeStorage';
 import { apiFetch } from '../api/config';
 
-vi.mock('../api/config', () => ({ apiFetch: vi.fn() }));
+// Only the network call is faked; error and abort helpers stay real.
+vi.mock('../api/config', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../api/config')>()),
+  apiFetch: vi.fn(),
+}));
 
 const mockedApiFetch = vi.mocked(apiFetch);
 
@@ -30,13 +34,13 @@ function errorResponse(body: string, status: number, statusText = 'Conflict') {
 const privateCourse = {
   id: 'type-private',
   name: 'Private Course',
-  basePrice: 19,
+  basePrice: 28,
   baseDurationMinutes: 45,
   createdAt: 1,
   updatedAt: 1,
 };
 
-const formData = { name: '  Private Course  ', basePrice: 19, baseDurationMinutes: 45 };
+const formData = { name: '  Private Course  ', basePrice: 28, baseDurationMinutes: 45 };
 
 describe('useLessonTypeStorage', () => {
   beforeEach(() => {
@@ -85,7 +89,7 @@ describe('useLessonTypeStorage', () => {
     expect(options?.method).toBe('POST');
     expect(JSON.parse(options?.body as string)).toEqual({
       name: 'Private Course',
-      basePrice: 19,
+      basePrice: 28,
       baseDurationMinutes: 45,
     });
     expect(result.current.lessonTypes).toHaveLength(1);

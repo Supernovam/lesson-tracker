@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { Lesson, LessonFormData } from '../types/lesson';
-import { apiFetch, isAbortError } from '../api/config';
+import { apiFetch, errorFromResponse, isAbortError } from '../api/config';
 
 async function fetchLessons(signal?: AbortSignal): Promise<Lesson[]> {
   const res = await apiFetch('/api/lessons', { signal });
@@ -8,17 +8,6 @@ async function fetchLessons(signal?: AbortSignal): Promise<Lesson[]> {
     throw new Error(`Failed to load lessons: ${res.status} ${res.statusText}`);
   }
   return (await res.json()) as Lesson[];
-}
-
-function errorFromResponse(text: string, status: number, statusText: string): Error {
-  let parsedError: string | undefined;
-  try {
-    const parsed = JSON.parse(text);
-    if (parsed && typeof parsed.error === 'string') parsedError = parsed.error;
-  } catch {
-    // ignore JSON parse errors and fall back below
-  }
-  return new Error(parsedError || text || `${status} ${statusText}`);
 }
 
 function toPayload(formData: LessonFormData) {
@@ -72,8 +61,7 @@ export function useLessonStorage() {
     });
 
     if (!res.ok) {
-      const text = await res.text().catch(() => '');
-      throw errorFromResponse(text, res.status, res.statusText);
+      throw await errorFromResponse(res);
     }
 
     const lesson = (await res.json()) as Lesson;
@@ -87,25 +75,22 @@ export function useLessonStorage() {
     });
 
     if (!res.ok) {
-      const text = await res.text().catch(() => '');
-      throw errorFromResponse(text, res.status, res.statusText);
+      throw await errorFromResponse(res);
     }
 
     const lesson = (await res.json()) as Lesson;
     setLessons((prev) => prev.map((item) => (item.id === id ? lesson : item)));
   }, []);
 
-  const deleteLesson = useCallback((id: string) => {
-    apiFetch(`/api/lessons/${encodeURIComponent(id)}`, {
+  const deleteLesson = useCallback(async (id: string) => {
+    const res = await apiFetch(`/api/lessons/${encodeURIComponent(id)}`, {
       method: 'DELETE',
-    })
-      .then((res) => {
-        if (!res.ok && res.status !== 404) throw new Error(`${res.status} ${res.statusText}`);
-      })
-      .then(() => setLessons((prev) => prev.filter((l) => l.id !== id)))
-      .catch((err) => {
-        console.error('Failed to delete lesson:', err);
-      });
+    });
+    // The API answers 204 even for an id that is already gone; a 404 is treated the same way.
+    if (!res.ok && res.status !== 404) {
+      throw await errorFromResponse(res);
+    }
+    setLessons((prev) => prev.filter((l) => l.id !== id));
   }, []);
 
   const lessonsByDate = [...lessons].sort(

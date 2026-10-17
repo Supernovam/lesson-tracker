@@ -3,10 +3,10 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import { useIssuedInvoices } from './useIssuedInvoices';
 import { apiFetch } from '../api/config';
 
-vi.mock('../api/config', () => ({
+// Only the network call is faked; error and abort helpers stay real.
+vi.mock('../api/config', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../api/config')>()),
   apiFetch: vi.fn(),
-  isAbortError: (err: unknown) =>
-    Boolean(err && typeof err === 'object' && 'name' in err && err.name === 'AbortError'),
 }));
 
 const mockedApiFetch = vi.mocked(apiFetch);
@@ -22,7 +22,7 @@ function jsonResponse(body: unknown, init: { ok?: boolean; status?: number } = {
 }
 
 const period = { from: '2026-09-01', to: '2026-09-30' };
-const eastIssued = { schoolId: 'school-east', ...period, year: 2026, number: 10, issuedOn: '2026-10-17' };
+const alphaIssued = { schoolId: 'school-alpha', ...period, year: 2026, number: 10, issuedOn: '2026-10-17' };
 
 describe('useIssuedInvoices', () => {
   beforeEach(() => {
@@ -30,12 +30,12 @@ describe('useIssuedInvoices', () => {
   });
 
   it('loads issued numbers for the period and year', async () => {
-    mockedApiFetch.mockResolvedValueOnce(jsonResponse({ invoices: [eastIssued], nextNumber: 11 }));
+    mockedApiFetch.mockResolvedValueOnce(jsonResponse({ invoices: [alphaIssued], nextNumber: 11 }));
 
     const { result } = renderHook(() => useIssuedInvoices(period.from, period.to, 2026));
 
     await waitFor(() => expect(result.current.status).toBe('ready'));
-    expect(result.current.invoices).toEqual([eastIssued]);
+    expect(result.current.invoices).toEqual([alphaIssued]);
     expect(result.current.nextNumber).toBe(11);
     expect(mockedApiFetch).toHaveBeenCalledWith(
       '/api/issued-invoices?from=2026-09-01&to=2026-09-30&year=2026',
@@ -48,21 +48,21 @@ describe('useIssuedInvoices', () => {
     const { result } = renderHook(() => useIssuedInvoices(period.from, period.to, 2026));
     await waitFor(() => expect(result.current.status).toBe('ready'));
 
-    const westIssued = { ...eastIssued, schoolId: 'school-west', number: 11 };
-    mockedApiFetch.mockResolvedValueOnce(jsonResponse([eastIssued, westIssued], { status: 201 }));
+    const betaIssued = { ...alphaIssued, schoolId: 'school-beta', number: 11 };
+    mockedApiFetch.mockResolvedValueOnce(jsonResponse([alphaIssued, betaIssued], { status: 201 }));
 
     let issued;
     await act(async () => {
-      issued = await result.current.issue(['school-east', 'school-west'], '2026-10-17');
+      issued = await result.current.issue(['school-alpha', 'school-beta'], '2026-10-17');
     });
 
-    expect(issued).toEqual([eastIssued, westIssued]);
+    expect(issued).toEqual([alphaIssued, betaIssued]);
     expect(mockedApiFetch).toHaveBeenLastCalledWith('/api/issued-invoices', {
       method: 'POST',
-      body: JSON.stringify({ ...period, issuedOn: '2026-10-17', schoolIds: ['school-east', 'school-west'] }),
+      body: JSON.stringify({ ...period, issuedOn: '2026-10-17', schoolIds: ['school-alpha', 'school-beta'] }),
     });
     expect(mockedApiFetch).toHaveBeenCalledTimes(2);
-    expect(result.current.invoices).toEqual([eastIssued, westIssued]);
+    expect(result.current.invoices).toEqual([alphaIssued, betaIssued]);
     expect(result.current.nextNumber).toBe(12);
   });
 

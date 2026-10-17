@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import { Router } from 'express';
 import { requireAuth } from '../auth.js';
+import { requireDbReady, isForeignKeyViolation } from './routeHelpers.js';
 
 const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -12,10 +13,6 @@ const ISSUED_INVOICE_RETURNING = `
   number,
   issued_on::text AS "issuedOn"
 `;
-
-function isForeignKeyViolation(err) {
-  return Boolean(err && err.code === '23503');
-}
 
 function isIsoDate(value) {
   return typeof value === 'string' && ISO_DATE_PATTERN.test(value);
@@ -63,10 +60,10 @@ async function nextNumberForYear(db, year) {
 export function createIssuedInvoicesRouter({ pool, isDbReady }) {
   const router = Router();
   router.use(requireAuth);
+  router.use(requireDbReady(isDbReady));
 
   // Issued numbers for one billing period, plus the number the next issue in `year` would get.
   router.get('/', async (req, res) => {
-    if (!isDbReady()) return res.status(503).json({ ok: false, error: 'db not ready' });
     const period = parsePeriod(req.query);
     if (period.error) return res.status(400).json({ error: period.error });
     const year = Number(req.query.year);
@@ -93,7 +90,6 @@ export function createIssuedInvoicesRouter({ pool, isDbReady }) {
   // Assigns consecutive numbers in `schoolIds` order. Schools already issued for this
   // period keep their number. The table lock serialises concurrent Issue clicks.
   router.post('/', async (req, res) => {
-    if (!isDbReady()) return res.status(503).json({ ok: false, error: 'db not ready' });
     const parsed = parseIssueBody(req.body ?? {});
     if (parsed.error) return res.status(400).json({ error: parsed.error });
 

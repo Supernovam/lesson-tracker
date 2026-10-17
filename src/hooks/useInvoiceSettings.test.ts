@@ -4,10 +4,10 @@ import { useInvoiceSettings } from './useInvoiceSettings';
 import { apiFetch } from '../api/config';
 import { FAKE_INVOICE_SETTINGS } from '../test/invoiceFixtures';
 
-vi.mock('../api/config', () => ({
+// Only the network call is faked; error and abort helpers stay real.
+vi.mock('../api/config', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../api/config')>()),
   apiFetch: vi.fn(),
-  isAbortError: (err: unknown) =>
-    Boolean(err && typeof err === 'object' && 'name' in err && err.name === 'AbortError'),
 }));
 
 const mockedApiFetch = vi.mocked(apiFetch);

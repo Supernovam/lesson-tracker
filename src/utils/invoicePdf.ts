@@ -1,14 +1,13 @@
 import type { jsPDF } from 'jspdf';
 import type { InvoiceRecipient, InvoiceSettings, IssuedInvoice } from '../types/invoice';
 import type { Lesson } from '../types/lesson';
-import { formatDisplayDate, formatInvoicePrice, getTodayISO } from './format';
+import { formatDisplayDate, formatInvoicePrice, getTodayISO, sumLessonPrices } from './format';
 import {
   canExportInvoice,
   formatInvoiceNumber,
   getLessonsForInvoice,
   invoiceFilename,
   mapLessonToInvoiceRow,
-  sumLessonPrices,
   type SchoolInvoice,
 } from './invoiceData';
 

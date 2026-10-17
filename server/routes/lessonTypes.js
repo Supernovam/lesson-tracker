@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import { Router } from 'express';
 import { requireAuth } from '../auth.js';
+import { requireDbReady, isUniqueViolation, isForeignKeyViolation } from './routeHelpers.js';
 
 const LESSON_TYPE_RETURNING = `
   id,
@@ -16,14 +17,6 @@ function mapLessonTypeRow(row) {
     ...row,
     basePrice: Math.round(Number(row.basePrice) * 100) / 100,
   };
-}
-
-function isUniqueViolation(err) {
-  return Boolean(err && err.code === '23505');
-}
-
-function isForeignKeyViolation(err) {
-  return Boolean(err && err.code === '23503');
 }
 
 function parseLessonTypeBody(body) {
@@ -53,9 +46,9 @@ function parseLessonTypeBody(body) {
 export function createLessonTypesRouter({ pool, isDbReady }) {
   const router = Router();
   router.use(requireAuth);
+  router.use(requireDbReady(isDbReady));
 
   router.get('/', async (_req, res) => {
-    if (!isDbReady()) return res.status(503).json({ ok: false, error: 'db not ready' });
     try {
       const { rows } = await pool.query(`
         SELECT ${LESSON_TYPE_RETURNING}
@@ -70,7 +63,6 @@ export function createLessonTypesRouter({ pool, isDbReady }) {
   });
 
   router.post('/', async (req, res) => {
-    if (!isDbReady()) return res.status(503).json({ ok: false, error: 'db not ready' });
     const parsed = parseLessonTypeBody(req.body ?? {});
     if (parsed.error) return res.status(400).json({ error: parsed.error });
 
@@ -97,7 +89,6 @@ export function createLessonTypesRouter({ pool, isDbReady }) {
   });
 
   router.put('/:id', async (req, res) => {
-    if (!isDbReady()) return res.status(503).json({ ok: false, error: 'db not ready' });
     const { id } = req.params;
     if (!id) return res.status(400).json({ error: 'id is required' });
 
@@ -128,7 +119,6 @@ export function createLessonTypesRouter({ pool, isDbReady }) {
   });
 
   router.delete('/:id', async (req, res) => {
-    if (!isDbReady()) return res.status(503).json({ ok: false, error: 'db not ready' });
     const { id } = req.params;
     if (!id) return res.status(400).json({ error: 'id is required' });
 

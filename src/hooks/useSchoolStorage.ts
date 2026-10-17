@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { School, SchoolFormData } from '../types/school';
-import { apiFetch } from '../api/config';
+import { apiFetch, errorFromResponse, isAbortError } from '../api/config';
 
 async function fetchSchools(signal?: AbortSignal): Promise<School[]> {
   const res = await apiFetch('/api/schools', { signal });
@@ -8,17 +8,6 @@ async function fetchSchools(signal?: AbortSignal): Promise<School[]> {
     throw new Error(`Failed to load schools: ${res.status} ${res.statusText}`);
   }
   return (await res.json()) as School[];
-}
-
-function errorFromResponse(text: string, status: number, statusText: string): Error {
-  let parsedError: string | undefined;
-  try {
-    const parsed = JSON.parse(text);
-    if (parsed && typeof parsed.error === 'string') parsedError = parsed.error;
-  } catch {
-    // ignore JSON parse errors and fall back below
-  }
-  return new Error(parsedError || text || `${status} ${statusText}`);
 }
 
 function toPayload(formData: SchoolFormData) {
@@ -50,13 +39,7 @@ export function useSchoolStorage() {
         setStatus('ready');
       })
       .catch((err) => {
-        const maybeName =
-          err instanceof Error
-            ? err.name
-            : typeof err === 'object' && err !== null && 'name' in err
-              ? (err as { name?: unknown }).name
-              : undefined;
-        if (maybeName === 'AbortError') return;
+        if (isAbortError(err)) return;
         console.error(err);
         if (isMounted) setStatus('error');
       });
@@ -74,8 +57,7 @@ export function useSchoolStorage() {
     });
 
     if (!res.ok) {
-      const text = await res.text().catch(() => '');
-      throw errorFromResponse(text, res.status, res.statusText);
+      throw await errorFromResponse(res);
     }
 
     const school = (await res.json()) as School;
@@ -89,8 +71,7 @@ export function useSchoolStorage() {
     });
 
     if (!res.ok) {
-      const text = await res.text().catch(() => '');
-      throw errorFromResponse(text, res.status, res.statusText);
+      throw await errorFromResponse(res);
     }
 
     const school = (await res.json()) as School;
@@ -106,8 +87,7 @@ export function useSchoolStorage() {
       return;
     }
     if (!res.ok) {
-      const text = await res.text().catch(() => '');
-      throw errorFromResponse(text, res.status, res.statusText);
+      throw await errorFromResponse(res);
     }
     setSchools((prev) => prev.filter((item) => item.id !== id));
   }, []);

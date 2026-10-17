@@ -1,25 +1,7 @@
 import * as XLSX from 'xlsx';
 import type { Lesson } from '../types/lesson';
-import { formatDisplayDate, formatDuration, formatPrice } from './format';
-import { sumLessonPrices } from './invoiceData';
-import { getLessonsForDisplay, type SortState } from './lessonTableData';
-
-/** Month filter value → English month name (or "all-months") for export filenames. */
-const EXPORT_FILENAME_MONTH: Record<string, string> = {
-  all: 'all-months',
-  '0': 'January',
-  '1': 'February',
-  '2': 'March',
-  '3': 'April',
-  '4': 'May',
-  '5': 'June',
-  '6': 'July',
-  '7': 'August',
-  '8': 'September',
-  '9': 'October',
-  '10': 'November',
-  '11': 'December',
-};
+import { formatDisplayDate, formatDuration, formatPrice, safeFilenamePart, sumLessonPrices } from './format';
+import { ALL_DATES, getLessonsForDisplay, type LessonFilter, type SortState } from './lessonTableData';
 
 export type LessonDisplayRow = readonly [string, string, string, string, string, string, string];
 
@@ -38,11 +20,14 @@ export class LessonExcelExporter {
   ] as const;
 
   /**
-   * Default download name: `lessons-export-<month>.xlsx` using the same month labels as the table filter.
+   * Default download name: `lessons-export-<from>-to-<to>.xlsx` (or `all-dates`), with the
+   * school title after `lessons-export-` when the list is filtered to one school.
    */
-  static filenameForExport(selectedMonth: string): string {
-    const part = EXPORT_FILENAME_MONTH[selectedMonth] ?? 'unknown';
-    return `lessons-export-${part}.xlsx`;
+  static filenameForExport(filter: LessonFilter, schoolTitle?: string): string {
+    const school = schoolTitle ? `${safeFilenamePart(schoolTitle)}-` : '';
+    const { period } = filter;
+    const dates = period === ALL_DATES ? 'all-dates' : `${period.from}-to-${period.to}`;
+    return `lessons-export-${school}${dates}.xlsx`;
   }
 
   /**
@@ -52,7 +37,7 @@ export class LessonExcelExporter {
     return [
       lesson.lessonTypeName || '—',
       lesson.schoolTitle || '—',
-      lesson.studentName,
+      lesson.studentName || '—',
       formatDisplayDate(lesson.date),
       formatDuration(lesson.duration),
       lesson.calculatedPrice == null ? '—' : formatPrice(lesson.calculatedPrice),
@@ -62,10 +47,10 @@ export class LessonExcelExporter {
 
   static getOrderedLessonsForExport(
     lessons: Lesson[],
-    selectedMonth: string,
+    filter: LessonFilter,
     sort: SortState
   ): Lesson[] {
-    return getLessonsForDisplay(lessons, selectedMonth, sort);
+    return getLessonsForDisplay(lessons, filter, sort);
   }
 
   /**
@@ -73,20 +58,20 @@ export class LessonExcelExporter {
    */
   static buildDataRows(
     lessons: Lesson[],
-    selectedMonth: string,
+    filter: LessonFilter,
     sort: SortState
   ): string[][] {
-    return this.getOrderedLessonsForExport(lessons, selectedMonth, sort).map((lesson) =>
+    return this.getOrderedLessonsForExport(lessons, filter, sort).map((lesson) =>
       [...this.mapLessonToDisplayRow(lesson)]
     );
   }
 
   static buildWorkbookRows(
     lessons: Lesson[],
-    selectedMonth: string,
+    filter: LessonFilter,
     sort: SortState
   ): string[][] {
-    const ordered = this.getOrderedLessonsForExport(lessons, selectedMonth, sort);
+    const ordered = this.getOrderedLessonsForExport(lessons, filter, sort);
     const dataRows = ordered.map((lesson) => [...this.mapLessonToDisplayRow(lesson)]);
     const total = sumLessonPrices(ordered);
     const costIndex = this.COLUMN_HEADERS.indexOf('Cost');
@@ -102,20 +87,20 @@ export class LessonExcelExporter {
   /**
    * Returns true when there is at least one lesson row to export (after filter + sort).
    */
-  static hasExportableRows(lessons: Lesson[], selectedMonth: string, sort: SortState): boolean {
-    return this.getOrderedLessonsForExport(lessons, selectedMonth, sort).length > 0;
+  static hasExportableRows(lessons: Lesson[], filter: LessonFilter, sort: SortState): boolean {
+    return this.getOrderedLessonsForExport(lessons, filter, sort).length > 0;
   }
 
   static downloadLessons(
     lessons: Lesson[],
-    selectedMonth: string,
+    filter: LessonFilter,
     sort: SortState,
     filename?: string
   ): void {
-    const aoa = this.buildWorkbookRows(lessons, selectedMonth, sort);
+    const aoa = this.buildWorkbookRows(lessons, filter, sort);
     const worksheet = XLSX.utils.aoa_to_sheet(aoa);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Lessons');
-    XLSX.writeFile(workbook, filename ?? this.filenameForExport(selectedMonth));
+    XLSX.writeFile(workbook, filename ?? this.filenameForExport(filter));
   }
 }

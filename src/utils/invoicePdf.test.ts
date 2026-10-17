@@ -47,14 +47,14 @@ describe('createInvoicePdf', () => {
 
   it('builds a Honorarrechnung with table structure and fake party details', async () => {
     const lessons = [
-      createLesson({ id: 'a', studentName: 'Alex', date: '2026-08-25', duration: 60, calculatedPrice: 25.33 }),
+      createLesson({ id: 'a', studentName: 'Alex', date: '2026-08-25', duration: 60, calculatedPrice: 37.33 }),
       createLesson({
         id: 'b',
         studentName: 'Sam',
         date: '2026-09-07',
         duration: 90,
-        lessonTypeName: 'AK-P',
-        calculatedPrice: 38,
+        lessonTypeName: 'Type B',
+        calculatedPrice: 56,
       }),
     ];
 
@@ -64,7 +64,7 @@ describe('createInvoicePdf', () => {
     expect(pdfContains(doc, 'Unterricht')).toBe(true);
     expect(pdfContains(doc, 'insgesamt')).toBe(true);
     expect(pdfContains(doc, 'Jane Issuer')).toBe(true);
-    expect(pdfContains(doc, 'East Campus GmbH')).toBe(true);
+    expect(pdfContains(doc, 'Alpha Campus GmbH')).toBe(true);
     expect(pdfContains(doc, 'Client Str. 2')).toBe(true);
     expect(pdfContains(doc, '54321 Client City')).toBe(true);
     expect(pdfContains(doc, 'Alex')).toBe(true);
@@ -74,14 +74,14 @@ describe('createInvoicePdf', () => {
 
   it('includes a previous-month lesson that falls in the billed period', async () => {
     const lessons = [
-      createLesson({ id: 'aug', studentName: 'Mayumi', date: '2026-08-25', calculatedPrice: 25.33 }),
-      createLesson({ id: 'sep', studentName: 'Alex', date: '2026-09-03', calculatedPrice: 38 }),
-      createLesson({ id: 'after', studentName: 'Sam', date: '2026-09-25', calculatedPrice: 38 }),
+      createLesson({ id: 'aug', studentName: 'Robin', date: '2026-08-25', calculatedPrice: 37.33 }),
+      createLesson({ id: 'sep', studentName: 'Alex', date: '2026-09-03', calculatedPrice: 56 }),
+      createLesson({ id: 'after', studentName: 'Sam', date: '2026-09-25', calculatedPrice: 56 }),
     ];
 
     const doc = await createInvoicePdf(FAKE_INVOICE_SETTINGS, FAKE_RECIPIENT, lessons, period);
 
-    expect(pdfContains(doc, 'Mayumi')).toBe(true);
+    expect(pdfContains(doc, 'Robin')).toBe(true);
     expect(pdfContains(doc, 'Alex')).toBe(true);
     expect(pdfContains(doc, 'Sam')).toBe(false);
   });
@@ -92,7 +92,7 @@ describe('createInvoicePdf', () => {
         id: `lesson-${index}`,
         date: `2026-09-${String((index % 24) + 1).padStart(2, '0')}`,
         createdAt: index,
-        calculatedPrice: 38,
+        calculatedPrice: 56,
       })
     );
 
@@ -120,7 +120,7 @@ describe('Rechnungsnummer in PDFs', () => {
     savedDocs.length = 0;
   });
 
-  const lessons = [createLesson({ date: '2026-09-03', calculatedPrice: 38 })];
+  const lessons = [createLesson({ date: '2026-09-03', calculatedPrice: 56 })];
   const september = { from: '2026-09-01', to: '2026-09-30' };
 
   async function savedPdfs(issued?: Parameters<typeof downloadInvoicePdfs>[3]) {

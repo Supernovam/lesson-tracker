@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { requireAuth } from '../auth.js';
+import { requireDbReady } from './routeHelpers.js';
 
 const INVOICE_SETTINGS_RETURNING = `
   issuer_name AS "issuerName",
@@ -16,9 +17,9 @@ const INVOICE_SETTINGS_RETURNING = `
 export function createInvoiceSettingsRouter({ pool, isDbReady }) {
   const router = Router();
   router.use(requireAuth);
+  router.use(requireDbReady(isDbReady));
 
   router.get('/', async (_req, res) => {
-    if (!isDbReady()) return res.status(503).json({ ok: false, error: 'db not ready' });
     try {
       const { rows } = await pool.query(`
         SELECT ${INVOICE_SETTINGS_RETURNING}

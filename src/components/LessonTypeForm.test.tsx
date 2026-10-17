@@ -6,7 +6,7 @@ import type { LessonType } from '../types/lessonType';
 const editingType: LessonType = {
   id: 'type-1',
   name: 'Private Course',
-  basePrice: 19,
+  basePrice: 28,
   baseDurationMinutes: 45,
   createdAt: 1,
   updatedAt: 1,
@@ -32,14 +32,14 @@ describe('LessonTypeForm', () => {
 
     expect(screen.getByRole('heading', { name: /edit lesson type/i })).toBeDefined();
     expect((screen.getByLabelText(/^name$/i) as HTMLInputElement).value).toBe('Private Course');
-    expect((screen.getByLabelText(/base price/i) as HTMLInputElement).value).toBe('19');
+    expect((screen.getByLabelText(/base price/i) as HTMLInputElement).value).toBe('28');
     expect((screen.getByLabelText(/base duration/i) as HTMLInputElement).value).toBe('45');
 
     fireEvent.click(screen.getByRole('button', { name: /update lesson type/i }));
     await waitFor(() => {
       expect(onSubmit).toHaveBeenCalledWith({
         name: 'Private Course',
-        basePrice: 19,
+        basePrice: 28,
         baseDurationMinutes: 45,
       });
     });

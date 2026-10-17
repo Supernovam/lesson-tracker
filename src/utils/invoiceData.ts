@@ -1,29 +1,9 @@
 import type { InvoiceRecipient, IssuedInvoice } from '../types/invoice';
 import type { Lesson } from '../types/lesson';
 import type { School } from '../types/school';
-import { formatDisplayDate, formatDuration, formatInvoicePrice } from './format';
+import { formatDisplayDate, formatDuration, formatInvoicePrice, safeFilenamePart } from './format';
+import { filterLessonsByDateRange, isIsoDate } from './dateRange';
 import { sortLessons } from './lessonTableData';
-
-const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
-
-export function calendarMonthBounds(year: number, monthIndex: number): { from: string; to: string } {
-  const month = monthIndex + 1;
-  const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
-  return {
-    from: `${year}-${String(month).padStart(2, '0')}-01`,
-    to: `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`,
-  };
-}
-
-export function currentCalendarMonthBounds(): { from: string; to: string } {
-  const now = new Date();
-  return calendarMonthBounds(now.getFullYear(), now.getMonth());
-}
-
-export function filterLessonsByDateRange(lessons: Lesson[], from: string, to: string): Lesson[] {
-  if (!ISO_DATE_PATTERN.test(from) || !ISO_DATE_PATTERN.test(to) || from > to) return [];
-  return lessons.filter((lesson) => lesson.date >= from && lesson.date <= to);
-}
 
 export function getLessonsForInvoice(lessons: Lesson[], from: string, to: string): Lesson[] {
   return sortLessons(filterLessonsByDateRange(lessons, from, to), 'date', 'asc');
@@ -32,7 +12,7 @@ export function getLessonsForInvoice(lessons: Lesson[], from: string, to: string
 export function mapLessonToInvoiceRow(lesson: Lesson): [string, string, string, string, string] {
   return [
     lesson.lessonTypeName || '—',
-    lesson.studentName,
+    lesson.studentName || '—',
     formatDisplayDate(lesson.date),
     formatDuration(lesson.duration),
     lesson.calculatedPrice == null ? '—' : formatInvoicePrice(lesson.calculatedPrice),
@@ -41,20 +21,6 @@ export function mapLessonToInvoiceRow(lesson: Lesson): [string, string, string, 
 
 export function lessonsMissingPrice(lessons: Lesson[]): Lesson[] {
   return lessons.filter((lesson) => lesson.calculatedPrice == null);
-}
-
-export function sumLessonPrices(lessons: Lesson[]): number {
-  return Math.round(lessons.reduce((sum, lesson) => sum + (lesson.calculatedPrice ?? 0), 0) * 100) / 100;
-}
-
-export function constrainInvoiceFrom(from: string, to: string): string {
-  if (ISO_DATE_PATTERN.test(from) && ISO_DATE_PATTERN.test(to) && from > to) return to;
-  return from;
-}
-
-export function constrainInvoiceTo(from: string, to: string): string {
-  if (ISO_DATE_PATTERN.test(from) && ISO_DATE_PATTERN.test(to) && to < from) return from;
-  return to;
 }
 
 export function recipientAddressLines(address: string): string[] {
@@ -118,14 +84,9 @@ export function canDownloadInvoices(lessons: Lesson[], schools: School[]): boole
   return missingSchool.length === 0 && unknownSchool.length === 0;
 }
 
-function safeFilenamePart(value: string): string {
-  const cleaned = value.trim().replace(/[\\/:*?"<>|]+/g, '-').replace(/\s+/g, ' ');
-  return cleaned || 'school';
-}
-
 export function invoiceFilename(schoolTitle: string, from: string, to: string): string {
   const title = safeFilenamePart(schoolTitle);
-  if (!ISO_DATE_PATTERN.test(from) || !ISO_DATE_PATTERN.test(to)) return `Honorarrechnung-${title}.pdf`;
+  if (!isIsoDate(from) || !isIsoDate(to)) return `Honorarrechnung-${title}.pdf`;
   return `Honorarrechnung-${title}-${from}-to-${to}.pdf`;
 }
 
