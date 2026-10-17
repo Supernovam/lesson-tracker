@@ -200,10 +200,23 @@ describe('useLessonStorage', () => {
 
     mockedApiFetch.mockResolvedValueOnce(jsonResponse(null, { status: 204 }));
     await act(async () => {
-      result.current.deleteLesson('lesson-1');
+      await result.current.deleteLesson('lesson-1');
     });
 
-    await waitFor(() => expect(result.current.lessons).toHaveLength(0));
+    expect(result.current.lessons).toHaveLength(0);
     expect(mockedApiFetch).toHaveBeenLastCalledWith('/api/lessons/lesson-1', { method: 'DELETE' });
+  });
+
+  it('keeps the lesson and reports the server error when delete fails', async () => {
+    mockedApiFetch.mockResolvedValueOnce(jsonResponse([lesson]));
+    const { result } = renderHook(() => useLessonStorage());
+    await waitFor(() => expect(result.current.lessons).toHaveLength(1));
+
+    mockedApiFetch.mockResolvedValueOnce(
+      jsonResponse({ error: 'failed to delete lesson' }, { ok: false, status: 500 })
+    );
+
+    await expect(result.current.deleteLesson('lesson-1')).rejects.toThrow('failed to delete lesson');
+    expect(result.current.lessons).toHaveLength(1);
   });
 });

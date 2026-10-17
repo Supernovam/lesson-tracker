@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import * as XLSX from 'xlsx';
 import type { Lesson } from '../types/lesson';
 import { LessonExcelExporter } from './exportUtils';
+import type { LessonFilter } from './lessonTableData';
 
 vi.mock('xlsx', () => ({
   utils: {
@@ -31,27 +32,50 @@ const baseLesson = (overrides: Partial<Lesson> = {}): Lesson => ({
   ...overrides,
 });
 
+const january: LessonFilter = { period: { from: '2025-01-01', to: '2025-01-31' }, schoolId: 'all' };
+const wholeYear: LessonFilter = { period: { from: '2025-01-01', to: '2025-12-31' }, schoolId: 'all' };
+const allDates: LessonFilter = { period: 'all', schoolId: 'all' };
+
 describe('LessonExcelExporter', () => {
   describe('filtering before export', () => {
-    it('exports only lessons in the selected month', () => {
+    it('exports only lessons in the selected date range', () => {
       const lessons: Lesson[] = [
         baseLesson({ id: 'a', date: '2025-01-10' }),
         baseLesson({ id: 'b', date: '2025-02-10', studentName: 'Bob' }),
         baseLesson({ id: 'c', date: '2025-01-20', studentName: 'Carol' }),
       ];
 
-      const rows = LessonExcelExporter.buildDataRows(lessons, '0', null);
+      const rows = LessonExcelExporter.buildDataRows(lessons, january, null);
       expect(rows).toHaveLength(2);
       expect(rows.map((r) => r[column('Student')])).toEqual(['Alice', 'Carol']);
     });
 
-    it('exports all lessons when month filter is "all"', () => {
+    it('exports only lessons of the selected school', () => {
+      const lessons: Lesson[] = [
+        baseLesson({ id: 'a', date: '2025-01-10' }),
+        baseLesson({ id: 'b', date: '2025-01-11', studentName: 'Bob', schoolId: 'school-2', schoolTitle: 'West' }),
+      ];
+
+      const rows = LessonExcelExporter.buildDataRows(lessons, { ...january, schoolId: 'school-2' }, null);
+      expect(rows.map((r) => r[column('Student')])).toEqual(['Bob']);
+    });
+
+    it('exports lessons of every year with All dates', () => {
+      const lessons: Lesson[] = [
+        baseLesson({ id: 'a', date: '2019-05-10' }),
+        baseLesson({ id: 'b', date: '2031-12-01', studentName: 'Zed' }),
+      ];
+
+      expect(LessonExcelExporter.buildDataRows(lessons, allDates, null)).toHaveLength(2);
+    });
+
+    it('exports lessons across months when the range spans them', () => {
       const lessons: Lesson[] = [
         baseLesson({ id: 'a', date: '2025-01-10' }),
         baseLesson({ id: 'b', date: '2025-12-01', studentName: 'Zed' }),
       ];
 
-      const rows = LessonExcelExporter.buildDataRows(lessons, 'all', null);
+      const rows = LessonExcelExporter.buildDataRows(lessons, wholeYear, null);
       expect(rows).toHaveLength(2);
     });
 
@@ -61,7 +85,7 @@ describe('LessonExcelExporter', () => {
         baseLesson({ id: 'a', studentName: 'Amy', date: '2025-01-01' }),
       ];
 
-      const rows = LessonExcelExporter.buildDataRows(lessons, 'all', {
+      const rows = LessonExcelExporter.buildDataRows(lessons, wholeYear, {
         column: 'studentName',
         direction: 'asc',
       });
@@ -71,14 +95,15 @@ describe('LessonExcelExporter', () => {
 
   describe('empty states', () => {
     it('returns no data rows when there are no lessons', () => {
-      expect(LessonExcelExporter.buildDataRows([], 'all', null)).toEqual([]);
-      expect(LessonExcelExporter.hasExportableRows([], 'all', null)).toBe(false);
+      expect(LessonExcelExporter.buildDataRows([], wholeYear, null)).toEqual([]);
+      expect(LessonExcelExporter.hasExportableRows([], wholeYear, null)).toBe(false);
     });
 
-    it('returns no data rows when the month filter matches nothing', () => {
+    it('returns no data rows when the filter matches nothing', () => {
       const lessons: Lesson[] = [baseLesson({ date: '2025-01-10' })];
-      expect(LessonExcelExporter.buildDataRows(lessons, '5', null)).toEqual([]);
-      expect(LessonExcelExporter.hasExportableRows(lessons, '5', null)).toBe(false);
+      const june: LessonFilter = { period: { from: '2025-06-01', to: '2025-06-30' }, schoolId: 'all' };
+      expect(LessonExcelExporter.buildDataRows(lessons, june, null)).toEqual([]);
+      expect(LessonExcelExporter.hasExportableRows(lessons, june, null)).toBe(false);
     });
   });
 
@@ -116,6 +141,11 @@ describe('LessonExcelExporter', () => {
       ]);
     });
 
+    it('uses an em dash when a lesson has no student name', () => {
+      const lesson = baseLesson({ studentName: '' });
+      expect(LessonExcelExporter.mapLessonToDisplayRow(lesson)[column('Student')]).toBe('—');
+    });
+
     it('uses an em dash when a lesson has no school', () => {
       const lesson = baseLesson({ schoolId: null, schoolTitle: null });
       expect(LessonExcelExporter.mapLessonToDisplayRow(lesson)[column('School')]).toBe('—');
@@ -147,7 +177,7 @@ describe('LessonExcelExporter', () => {
         }),
       ];
 
-      const rows = LessonExcelExporter.buildWorkbookRows(lessons, 'all', null);
+      const rows = LessonExcelExporter.buildWorkbookRows(lessons, wholeYear, null);
       expect(rows[0]).toEqual([...LessonExcelExporter.COLUMN_HEADERS]);
       expect(rows).toContainEqual(['Total', '', '', '', '', '107,33\u00A0€', '']);
       expect(rows.some((row) => row[0] === 'Breakdown by lesson type')).toBe(false);
@@ -155,32 +185,33 @@ describe('LessonExcelExporter', () => {
   });
 
   describe('export filenames', () => {
-    it('includes the English month name when a specific month is selected', () => {
-      expect(LessonExcelExporter.filenameForExport('2')).toBe('lessons-export-March.xlsx');
-      expect(LessonExcelExporter.filenameForExport('11')).toBe('lessons-export-December.xlsx');
+    it('names the file after the date range', () => {
+      expect(LessonExcelExporter.filenameForExport(january)).toBe('lessons-export-2025-01-01-to-2025-01-31.xlsx');
     });
 
-    it('uses all-months when the filter is All', () => {
-      expect(LessonExcelExporter.filenameForExport('all')).toBe('lessons-export-all-months.xlsx');
+    it('names an All dates export all-dates', () => {
+      expect(LessonExcelExporter.filenameForExport(allDates)).toBe('lessons-export-all-dates.xlsx');
     });
 
-    it('falls back to a generic segment when the month value is unknown', () => {
-      expect(LessonExcelExporter.filenameForExport('not-a-month')).toBe('lessons-export-unknown.xlsx');
-    });
-
-    it('passes the month-based filename to xlsx writeFile when downloading', () => {
-      vi.mocked(XLSX.writeFile).mockClear();
-      LessonExcelExporter.downloadLessons([baseLesson()], '8', null);
-      expect(XLSX.writeFile).toHaveBeenCalledTimes(1);
-      expect(XLSX.writeFile).toHaveBeenCalledWith(
-        expect.anything(),
-        'lessons-export-September.xlsx'
+    it('adds the school title when filtered to one school', () => {
+      expect(LessonExcelExporter.filenameForExport({ ...january, schoolId: 'school-1' }, 'East/Campus')).toBe(
+        'lessons-export-East-Campus-2025-01-01-to-2025-01-31.xlsx'
       );
     });
 
-    it('uses an explicit filename when provided instead of the month-based default', () => {
+    it('passes the range-based filename to xlsx writeFile when downloading', () => {
       vi.mocked(XLSX.writeFile).mockClear();
-      LessonExcelExporter.downloadLessons([baseLesson()], '0', null, 'custom-name.xlsx');
+      LessonExcelExporter.downloadLessons([baseLesson()], january, null);
+      expect(XLSX.writeFile).toHaveBeenCalledTimes(1);
+      expect(XLSX.writeFile).toHaveBeenCalledWith(
+        expect.anything(),
+        'lessons-export-2025-01-01-to-2025-01-31.xlsx'
+      );
+    });
+
+    it('uses an explicit filename when provided instead of the default', () => {
+      vi.mocked(XLSX.writeFile).mockClear();
+      LessonExcelExporter.downloadLessons([baseLesson()], january, null, 'custom-name.xlsx');
       expect(XLSX.writeFile).toHaveBeenCalledWith(expect.anything(), 'custom-name.xlsx');
     });
   });

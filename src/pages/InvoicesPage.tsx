@@ -1,17 +1,15 @@
 import { useState } from 'react';
-import type { ChangeEvent } from 'react';
 import { Download, FileCheck } from 'lucide-react';
+import { DateRangeFields } from '../components/DateRangeFields';
 import { useInvoiceSettings } from '../hooks/useInvoiceSettings';
 import { useIssuedInvoices } from '../hooks/useIssuedInvoices';
 import { useLessonStorage } from '../hooks/useLessonStorage';
 import { useSchoolStorage } from '../hooks/useSchoolStorage';
 import type { IssuedInvoice } from '../types/invoice';
-import { formatDisplayDate, formatInvoicePrice, getTodayISO } from '../utils/format';
+import { currentCalendarMonthBounds, type DateRange } from '../utils/dateRange';
+import { describeLesson, formatDisplayDate, formatInvoicePrice, getTodayISO } from '../utils/format';
 import {
   canDownloadInvoices,
-  constrainInvoiceFrom,
-  constrainInvoiceTo,
-  currentCalendarMonthBounds,
   formatInvoiceNumber,
   getLessonsForInvoice,
   lessonsMissingPrice,
@@ -23,8 +21,6 @@ import {
 } from '../utils/invoiceData';
 import { downloadInvoicePdfs } from '../utils/invoicePdf';
 
-const dateInputClass =
-  'rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-400';
 const invoiceCellClass = 'border border-slate-300 px-3 py-2';
 const invoiceHeaderClass = `${invoiceCellClass} bg-slate-50 text-left text-xs font-semibold tracking-wide text-slate-700`;
 const secondaryButtonClass =
@@ -132,8 +128,8 @@ export function InvoicesPage() {
   const { lessons, status: lessonStatus } = useLessonStorage();
   const { schools, status: schoolStatus } = useSchoolStorage();
   const invoice = useInvoiceSettings();
-  const [from, setFrom] = useState(() => currentCalendarMonthBounds().from);
-  const [to, setTo] = useState(() => currentCalendarMonthBounds().to);
+  const [period, setPeriod] = useState<DateRange>(currentCalendarMonthBounds);
+  const { from, to } = period;
   const [exportError, setExportError] = useState<string | null>(null);
   const [isConfirmingIssue, setIsConfirmingIssue] = useState(false);
   const [isIssuing, setIsIssuing] = useState(false);
@@ -154,13 +150,8 @@ export function InvoicesPage() {
   const canIssue = exportable && !isIssuing && plannedNumbers.length > 0;
   const issuedBySchool = new Map(issuedInvoices.invoices.map((entry) => [entry.schoolId, entry]));
 
-  function handleFromChange(event: ChangeEvent<HTMLInputElement>) {
-    setFrom(constrainInvoiceFrom(event.target.value, to));
-    setIsConfirmingIssue(false);
-  }
-
-  function handleToChange(event: ChangeEvent<HTMLInputElement>) {
-    setTo(constrainInvoiceTo(from, event.target.value));
+  function handlePeriodChange(next: DateRange) {
+    setPeriod(next);
     setIsConfirmingIssue(false);
   }
 
@@ -226,34 +217,12 @@ export function InvoicesPage() {
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         <div className="flex flex-col gap-4 border-b border-slate-200 p-4">
           <div className="flex flex-wrap items-end gap-3">
-            <div className="flex flex-col gap-1.5">
-              <label htmlFor="invoice-from" className="text-sm font-medium text-slate-700">
-                From
-              </label>
-              <input
-                id="invoice-from"
-                type="date"
-                value={from}
-                max={to}
-                onChange={handleFromChange}
-                className={dateInputClass}
-                aria-label="Invoice period start date"
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label htmlFor="invoice-to" className="text-sm font-medium text-slate-700">
-                To
-              </label>
-              <input
-                id="invoice-to"
-                type="date"
-                value={to}
-                min={from}
-                onChange={handleToChange}
-                className={dateInputClass}
-                aria-label="Invoice period end date"
-              />
-            </div>
+            <DateRangeFields
+              idPrefix="invoice"
+              ariaLabelPrefix="Invoice period"
+              range={period}
+              onChange={handlePeriodChange}
+            />
             <button
               type="button"
               onClick={handleExport}
@@ -366,7 +335,7 @@ export function InvoicesPage() {
                   <ul className="mt-1 list-disc pl-5">
                     {unpricedLessons.map((lesson) => (
                       <li key={lesson.id}>
-                        No price for {lesson.studentName} on {formatDisplayDate(lesson.date)}.
+                        No price for the {describeLesson(lesson)}.
                       </li>
                     ))}
                   </ul>
@@ -378,7 +347,7 @@ export function InvoicesPage() {
                   <ul className="mt-1 list-disc pl-5">
                     {missingSchool.map((lesson) => (
                       <li key={lesson.id}>
-                        No school for {lesson.studentName} on {formatDisplayDate(lesson.date)}.
+                        No school for the {describeLesson(lesson)}.
                       </li>
                     ))}
                   </ul>
@@ -390,7 +359,7 @@ export function InvoicesPage() {
                   <ul className="mt-1 list-disc pl-5">
                     {unknownSchool.map((lesson) => (
                       <li key={lesson.id}>
-                        Unknown school for {lesson.studentName} on {formatDisplayDate(lesson.date)}.
+                        Unknown school for the {describeLesson(lesson)}.
                       </li>
                     ))}
                   </ul>

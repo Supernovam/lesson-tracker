@@ -59,7 +59,9 @@ async function resolveLessonPricing(pool, lessonTypeId, durationInt) {
 }
 
 function parseLessonBody(body) {
-  const studentName = typeof body.studentName === 'string' ? body.studentName.trim() : '';
+  // Optional, but must be sent as a string so a malformed update cannot silently clear it.
+  if (typeof body.studentName !== 'string') return { error: 'studentName must be a string' };
+  const studentName = body.studentName.trim();
   const dateStr = typeof body.date === 'string' ? body.date.trim() : '';
   const duration = typeof body.duration === 'number' ? body.duration : Number(body.duration);
   const comment = typeof body.comment === 'string' ? body.comment.trim() : '';
@@ -69,7 +71,6 @@ function parseLessonBody(body) {
   const date = new Date(dateStr);
   const durationInt = Number.isInteger(duration) ? duration : Math.floor(duration);
 
-  if (!studentName) return { error: 'studentName is required' };
   if (!dateStr || Number.isNaN(date.getTime())) return { error: 'date is invalid' };
   if (!Number.isInteger(durationInt) || durationInt < 1 || durationInt > 9999) {
     return { error: 'duration must be an integer between 1 and 9999' };

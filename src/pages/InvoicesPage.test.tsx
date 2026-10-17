@@ -211,10 +211,18 @@ describe('InvoicesPage', () => {
     render(<InvoicesPage />);
 
     expect(screen.getByRole('alert').textContent).toMatch(/needs a price/i);
-    expect(screen.getByRole('alert').textContent).toMatch(/No price for Alex on 03.09.2026/);
+    expect(screen.getByRole('alert').textContent).toMatch(/No price for the lesson for Alex on 03.09.2026/);
     expect(
       (screen.getByRole('button', { name: /download invoice pdf/i }) as HTMLButtonElement).disabled
     ).toBe(true);
+  });
+
+  it('names a lesson without a student by its date in the guard message', () => {
+    mockLessons([createLesson({ studentName: '', date: '2026-09-03', calculatedPrice: null })]);
+
+    render(<InvoicesPage />);
+
+    expect(screen.getByRole('alert').textContent).toMatch(/No price for the lesson on 03.09.2026/);
   });
 
   it('blocks download when a lesson in the period has no school', () => {
@@ -231,7 +239,7 @@ describe('InvoicesPage', () => {
     render(<InvoicesPage />);
 
     expect(screen.getByRole('alert').textContent).toMatch(/needs a school/i);
-    expect(screen.getByRole('alert').textContent).toMatch(/No school for Alex on 03.09.2026/);
+    expect(screen.getByRole('alert').textContent).toMatch(/No school for the lesson for Alex on 03.09.2026/);
     expect(
       (screen.getByRole('button', { name: /download invoice pdf/i }) as HTMLButtonElement).disabled
     ).toBe(true);

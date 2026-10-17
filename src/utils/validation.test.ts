@@ -17,16 +17,10 @@ describe('validateLessonForm', () => {
     expect(result.errors).toEqual({});
   });
 
-  it('returns error when student name is empty', () => {
-    const result = validateLessonForm({ ...validData, studentName: '' });
-    expect(result.valid).toBe(false);
-    expect(result.errors.studentName).toBe('Student name is required');
-  });
-
-  it('returns error when student name is only whitespace', () => {
-    const result = validateLessonForm({ ...validData, studentName: '   \t  ' });
-    expect(result.valid).toBe(false);
-    expect(result.errors.studentName).toBe('Student name is required');
+  it.each(['', '   \t  '])('accepts an empty student name (%j)', (studentName) => {
+    const result = validateLessonForm({ ...validData, studentName });
+    expect(result.valid).toBe(true);
+    expect(result.errors.studentName).toBeUndefined();
   });
 
   it('returns error when date is empty', () => {

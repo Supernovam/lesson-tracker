@@ -237,8 +237,33 @@ describe('POST /api/lessons', () => {
     expect(queryFor(pool, 'INSERT INTO lessons')).toBeUndefined();
   });
 
+  it.each([[''], ['   ']])('accepts a lesson without a student name (%j)', async (studentName) => {
+    const pool = pricingPool();
+
+    const res = await request(appFor(pool))
+      .post('/api/lessons')
+      .send({ ...validBody, studentName });
+
+    expect(res.status).toBe(201);
+    expect(queryFor(pool, 'INSERT INTO lessons').params[1]).toBe('');
+  });
+
   it.each([
-    ['studentName', { studentName: '  ' }, /studentName is required/],
+    ['missing', { studentName: undefined }],
+    ['not a string', { studentName: 42 }],
+  ])('rejects a student name that is %s', async (_case, override) => {
+    const pool = pricingPool();
+
+    const res = await request(appFor(pool))
+      .post('/api/lessons')
+      .send({ ...validBody, ...override });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/studentName must be a string/);
+    expect(queryFor(pool, 'INSERT INTO lessons')).toBeUndefined();
+  });
+
+  it.each([
     ['date', { date: 'not-a-date' }, /date is invalid/],
     ['duration', { duration: 0 }, /duration must be an integer/],
     ['duration', { duration: 10000 }, /duration must be an integer/],
@@ -308,15 +333,26 @@ describe('PUT /api/lessons/:id', () => {
     expect(queryFor(pool, 'UPDATE lessons')).toBeUndefined();
   });
 
+  it('does not clear the student name when an update leaves it out', async () => {
+    const pool = pricingPool();
+    const withoutStudent = { ...validBody };
+    delete withoutStudent.studentName;
+
+    const res = await request(appFor(pool)).put('/api/lessons/lesson-1').send(withoutStudent);
+
+    expect(res.status).toBe(400);
+    expect(queryFor(pool, 'UPDATE lessons')).toBeUndefined();
+  });
+
   it('validates the body like create does', async () => {
     const pool = pricingPool();
 
     const res = await request(appFor(pool))
       .put('/api/lessons/lesson-1')
-      .send({ ...validBody, studentName: '  ' });
+      .send({ ...validBody, duration: 0 });
 
     expect(res.status).toBe(400);
-    expect(res.body.error).toMatch(/studentName is required/);
+    expect(res.body.error).toMatch(/duration must be an integer/);
     expect(queryFor(pool, 'UPDATE lessons')).toBeUndefined();
   });
 

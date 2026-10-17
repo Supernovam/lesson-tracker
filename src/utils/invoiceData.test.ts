@@ -1,13 +1,8 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import {
   formatInvoiceNumber,
   planInvoiceNumbers,
-  calendarMonthBounds,
   canExportInvoice,
-  constrainInvoiceFrom,
-  constrainInvoiceTo,
-  currentCalendarMonthBounds,
-  filterLessonsByDateRange,
   getLessonsForInvoice,
   invoiceFilename,
   lessonsMissingPrice,
@@ -18,20 +13,6 @@ import {
   sumLessonPrices,
 } from './invoiceData';
 import { FAKE_SCHOOL, createLesson } from '../test/invoiceFixtures';
-
-describe('calendarMonthBounds', () => {
-  it('returns the first and last day of the month', () => {
-    expect(calendarMonthBounds(2026, 8)).toEqual({ from: '2026-09-01', to: '2026-09-30' });
-    expect(calendarMonthBounds(2024, 1)).toEqual({ from: '2024-02-01', to: '2024-02-29' });
-  });
-
-  it('uses the current calendar month', () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date('2026-09-21T12:00:00Z'));
-    expect(currentCalendarMonthBounds()).toEqual({ from: '2026-09-01', to: '2026-09-30' });
-    vi.useRealTimers();
-  });
-});
 
 describe('filter and sort for a billed period', () => {
   it('keeps lessons from the start date through the end date, including across months', () => {
@@ -44,9 +25,6 @@ describe('filter and sort for a billed period', () => {
     ];
 
     expect(
-      filterLessonsByDateRange(lessons, '2026-08-25', '2026-09-24').map((lesson) => lesson.id)
-    ).toEqual(['aug', 'sep-late', 'sep-early']);
-    expect(
       getLessonsForInvoice(lessons, '2026-08-25', '2026-09-24').map((lesson) => lesson.id)
     ).toEqual(['aug', 'sep-early', 'sep-late']);
   });
@@ -54,18 +32,6 @@ describe('filter and sort for a billed period', () => {
   it('returns no lessons when the range is inverted or invalid', () => {
     expect(getLessonsForInvoice([createLesson()], '2026-09-30', '2026-09-01')).toEqual([]);
     expect(getLessonsForInvoice([createLesson()], '9', '2026-09-30')).toEqual([]);
-  });
-});
-
-describe('constrain invoice dates', () => {
-  it('does not allow From to move after To', () => {
-    expect(constrainInvoiceFrom('2026-10-01', '2026-09-30')).toBe('2026-09-30');
-    expect(constrainInvoiceFrom('2026-08-25', '2026-09-30')).toBe('2026-08-25');
-  });
-
-  it('does not allow To to move before From', () => {
-    expect(constrainInvoiceTo('2026-09-01', '2026-08-01')).toBe('2026-09-01');
-    expect(constrainInvoiceTo('2026-09-01', '2026-09-24')).toBe('2026-09-24');
   });
 });
 
@@ -94,6 +60,10 @@ describe('export guards and totals', () => {
 });
 
 describe('mapLessonToInvoiceRow', () => {
+  it('shows an em dash in the Name cell when the lesson has no student', () => {
+    expect(mapLessonToInvoiceRow(createLesson({ studentName: '' }))[1]).toBe('—');
+  });
+
   it('formats Honorarrechnung cells, using an em dash when the price is missing', () => {
     expect(
       mapLessonToInvoiceRow(

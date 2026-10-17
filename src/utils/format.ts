@@ -59,3 +59,12 @@ const invoicePriceFormatter = new Intl.NumberFormat('de-DE', {
 export function formatInvoicePrice(amount: number): string {
   return `${invoicePriceFormatter.format(amount)}€`;
 }
+
+/**
+ * Names a lesson in messages and accessible labels: "lesson for Alex on 03.09.2026", or
+ * "lesson on 03.09.2026" when no student name was entered.
+ */
+export function describeLesson(lesson: { studentName: string; date: string }): string {
+  const student = lesson.studentName ? ` for ${lesson.studentName}` : '';
+  return `lesson${student} on ${formatDisplayDate(lesson.date)}`;
+}

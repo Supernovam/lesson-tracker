@@ -57,6 +57,20 @@ describe('LessonForm', () => {
     expect(screen.getByText('Lesson type is required')).toBeDefined();
   });
 
+  it('saves a lesson without a student name', async () => {
+    const onSubmit = vi.fn().mockResolvedValue(undefined);
+    render(<LessonForm lessonTypes={lessonTypes} schools={schools} onSubmit={onSubmit} />);
+
+    expect(screen.getByText(/^student name/i, { selector: 'label' }).textContent).toMatch(/\(optional\)/);
+    fireEvent.change(screen.getByLabelText(/lesson type/i), { target: { value: 'private' } });
+    fireEvent.change(screen.getByLabelText(/^school$/i), { target: { value: 'east' } });
+    fireEvent.click(screen.getByRole('button', { name: /save lesson/i }));
+
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ studentName: '', lessonTypeId: 'private' }));
+    expect(screen.queryByText(/student name is required/i)).toBeNull();
+  });
+
   it('shows a live price preview when a type and duration are set', () => {
     render(<LessonForm lessonTypes={lessonTypes} schools={schools} onSubmit={vi.fn()} />);
     fireEvent.change(screen.getByLabelText(/lesson type/i), { target: { value: 'private' } });

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { formatDisplayDate, getTodayISO, formatDuration, formatPrice, formatInvoicePrice } from './format';
+import { describeLesson, formatDisplayDate, getTodayISO, formatDuration, formatPrice, formatInvoicePrice } from './format';
 
 describe('formatDisplayDate', () => {
   it('formats YYYY-MM-DD to European style DD.MM.YYYY', () => {
@@ -51,5 +51,15 @@ describe('formatInvoicePrice', () => {
     expect(formatInvoicePrice(19)).toBe('19,00€');
     expect(formatInvoicePrice(25.33)).toBe('25,33€');
     expect(formatInvoicePrice(1519)).toBe('1.519,00€');
+  });
+});
+
+describe('describeLesson', () => {
+  it('names the student and date', () => {
+    expect(describeLesson({ studentName: 'Alex', date: '2026-09-03' })).toBe('lesson for Alex on 03.09.2026');
+  });
+
+  it('leaves out the student when there is no name', () => {
+    expect(describeLesson({ studentName: '', date: '2026-09-03' })).toBe('lesson on 03.09.2026');
   });
 });

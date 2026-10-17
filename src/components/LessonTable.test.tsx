@@ -2,9 +2,27 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { LessonTable } from './LessonTable';
 import type { Lesson } from '../types/lesson';
+import type { School } from '../types/school';
 
-const selectMonth = (value: string) =>
-  fireEvent.change(screen.getByLabelText(/filter lessons by month/i), { target: { value } });
+const SCHOOLS: School[] = [
+  { id: 'school-east', title: 'East', billingName: 'East GmbH', address: 'A', createdAt: 1, updatedAt: 1 },
+  { id: 'school-west', title: 'West', billingName: 'West GmbH', address: 'B', createdAt: 1, updatedAt: 1 },
+];
+const FILTER_STORAGE_KEY = 'lesson-tracker:lesson-filters';
+
+const fromInput = () => screen.getByLabelText(/lesson filter start date/i) as HTMLInputElement;
+const toInput = () => screen.getByLabelText(/lesson filter end date/i) as HTMLInputElement;
+const schoolSelect = () => screen.getByLabelText(/filter lessons by school/i) as HTMLSelectElement;
+
+/** Widens the range first so From never gets clamped against the old To. */
+const setRange = (from: string, to: string) => {
+  fireEvent.change(toInput(), { target: { value: '2099-12-31' } });
+  fireEvent.change(fromInput(), { target: { value: from } });
+  fireEvent.change(toInput(), { target: { value: to } });
+};
+const showWholeYear = () => setRange('2025-01-01', '2025-12-31');
+const selectSchool = (value: string) => fireEvent.change(schoolSelect(), { target: { value } });
+const dataRows = () => screen.getAllByRole('row').slice(1);
 
 const createLesson = (overrides: Partial<Lesson>): Lesson => ({
   id: crypto.randomUUID(),
@@ -26,14 +44,16 @@ describe('LessonTable', () => {
   beforeEach(() => {
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(new Date('2025-01-15T12:00:00Z'));
+    window.localStorage.clear();
   });
 
   afterEach(() => {
     vi.useRealTimers();
+    window.localStorage.clear();
   });
 
   it('shows empty state when no lessons', () => {
-    render(<LessonTable lessons={[]} onDelete={vi.fn()} onEdit={vi.fn()} />);
+    render(<LessonTable schools={SCHOOLS} lessons={[]} onDelete={vi.fn()} onEdit={vi.fn()} />);
     expect(screen.getByRole('status', { name: /no lessons recorded/i })).toBeDefined();
     expect(screen.getByText(/no lessons yet/i)).toBeDefined();
   });
@@ -45,9 +65,11 @@ describe('LessonTable', () => {
       createLesson({ id: '3', studentName: 'Bob', date: '2025-02-10' }),
     ];
 
-    render(<LessonTable lessons={lessons} onDelete={vi.fn()} onEdit={vi.fn()} />);
+    render(<LessonTable schools={SCHOOLS} lessons={lessons} onDelete={vi.fn()} onEdit={vi.fn()} />);
 
-    expect((screen.getByLabelText(/filter lessons by month/i) as HTMLSelectElement).value).toBe('0');
+    expect(fromInput().value).toBe('2025-01-01');
+    expect(toInput().value).toBe('2025-01-31');
+    expect(schoolSelect().value).toBe('all');
 
     const rows = screen.getAllByRole('row').slice(1);
     expect(rows).toHaveLength(1);
@@ -61,8 +83,8 @@ describe('LessonTable', () => {
       createLesson({ id: '3', studentName: 'Bob', date: '2025-02-10' }),
     ];
 
-    render(<LessonTable lessons={lessons} onDelete={vi.fn()} onEdit={vi.fn()} />);
-    selectMonth('all');
+    render(<LessonTable schools={SCHOOLS} lessons={lessons} onDelete={vi.fn()} onEdit={vi.fn()} />);
+    showWholeYear();
 
     const rows = screen.getAllByRole('row').slice(1);
     expect(rows).toHaveLength(3);
@@ -78,7 +100,7 @@ describe('LessonTable', () => {
       createLesson({ id: '3', studentName: 'Bob', date: '2025-01-01' }),
     ];
 
-    render(<LessonTable lessons={lessons} onDelete={vi.fn()} onEdit={vi.fn()} />);
+    render(<LessonTable schools={SCHOOLS} lessons={lessons} onDelete={vi.fn()} onEdit={vi.fn()} />);
 
     fireEvent.click(screen.getByRole('button', { name: /sort by student name/i }));
 
@@ -95,7 +117,7 @@ describe('LessonTable', () => {
       createLesson({ id: '3', studentName: 'Bob', date: '2025-01-01' }),
     ];
 
-    render(<LessonTable lessons={lessons} onDelete={vi.fn()} onEdit={vi.fn()} />);
+    render(<LessonTable schools={SCHOOLS} lessons={lessons} onDelete={vi.fn()} onEdit={vi.fn()} />);
 
     fireEvent.click(screen.getByRole('button', { name: /sort by student name/i }));
     fireEvent.click(screen.getByRole('button', { name: /sort by student name descending/i }));
@@ -113,7 +135,7 @@ describe('LessonTable', () => {
       createLesson({ id: '3', studentName: 'Ben', date: '2025-01-03', schoolTitle: 'East' }),
     ];
 
-    render(<LessonTable lessons={lessons} onDelete={vi.fn()} onEdit={vi.fn()} />);
+    render(<LessonTable schools={SCHOOLS} lessons={lessons} onDelete={vi.fn()} onEdit={vi.fn()} />);
 
     fireEvent.click(screen.getByRole('button', { name: /sort by school ascending/i }));
 
@@ -132,7 +154,7 @@ describe('LessonTable', () => {
       createLesson({ id: '3', studentName: 'Ben', date: '2025-01-03', schoolTitle: 'North' }),
     ];
 
-    render(<LessonTable lessons={lessons} onDelete={vi.fn()} onEdit={vi.fn()} />);
+    render(<LessonTable schools={SCHOOLS} lessons={lessons} onDelete={vi.fn()} onEdit={vi.fn()} />);
 
     fireEvent.click(screen.getByRole('button', { name: /sort by school ascending/i }));
     fireEvent.click(screen.getByRole('button', { name: /sort by school descending/i }));
@@ -150,8 +172,8 @@ describe('LessonTable', () => {
       createLesson({ id: '3', studentName: 'Same', date: '2025-02-05' }),
     ];
 
-    render(<LessonTable lessons={lessons} onDelete={vi.fn()} onEdit={vi.fn()} />);
-    selectMonth('all');
+    render(<LessonTable schools={SCHOOLS} lessons={lessons} onDelete={vi.fn()} onEdit={vi.fn()} />);
+    showWholeYear();
 
     fireEvent.click(screen.getByRole('button', { name: /sort by date/i }));
 
@@ -168,8 +190,8 @@ describe('LessonTable', () => {
       createLesson({ id: '3', studentName: 'Same', date: '2025-02-05' }),
     ];
 
-    render(<LessonTable lessons={lessons} onDelete={vi.fn()} onEdit={vi.fn()} />);
-    selectMonth('all');
+    render(<LessonTable schools={SCHOOLS} lessons={lessons} onDelete={vi.fn()} onEdit={vi.fn()} />);
+    showWholeYear();
 
     fireEvent.click(screen.getByRole('button', { name: /sort by date/i }));
     fireEvent.click(screen.getByRole('button', { name: /sort by date descending/i }));
@@ -186,8 +208,8 @@ describe('LessonTable', () => {
       createLesson({ id: '2', studentName: 'Alice', date: '2025-01-10' }),
     ];
 
-    render(<LessonTable lessons={lessons} onDelete={vi.fn()} onEdit={vi.fn()} />);
-    selectMonth('all');
+    render(<LessonTable schools={SCHOOLS} lessons={lessons} onDelete={vi.fn()} onEdit={vi.fn()} />);
+    showWholeYear();
 
     fireEvent.click(screen.getByRole('button', { name: /sort by student name ascending/i }));
     const studentButton = screen.getByRole('button', { name: /sort by student name descending/i });
@@ -207,8 +229,8 @@ describe('LessonTable', () => {
       createLesson({ id: '3', studentName: 'Bob', date: '2025-02-05' }),
     ];
 
-    render(<LessonTable lessons={lessons} onDelete={vi.fn()} onEdit={vi.fn()} />);
-    selectMonth('all');
+    render(<LessonTable schools={SCHOOLS} lessons={lessons} onDelete={vi.fn()} onEdit={vi.fn()} />);
+    showWholeYear();
 
     fireEvent.click(screen.getByRole('button', { name: /sort by student name/i }));
     fireEvent.click(screen.getByRole('button', { name: /sort by date/i }));
@@ -226,7 +248,7 @@ describe('LessonTable', () => {
       createLesson({ id: 'm-second', studentName: 'Same', date: '2025-01-01', comment: 'B' }),
     ];
 
-    render(<LessonTable lessons={lessons} onDelete={vi.fn()} onEdit={vi.fn()} />);
+    render(<LessonTable schools={SCHOOLS} lessons={lessons} onDelete={vi.fn()} onEdit={vi.fn()} />);
 
     fireEvent.click(screen.getByRole('button', { name: /sort by student name/i }));
 
@@ -241,7 +263,7 @@ describe('LessonTable', () => {
       createLesson({ id: '1', studentName: 'Alice', date: '2025-01-01' }),
     ];
 
-    render(<LessonTable lessons={lessons} onDelete={vi.fn()} onEdit={vi.fn()} />);
+    render(<LessonTable schools={SCHOOLS} lessons={lessons} onDelete={vi.fn()} onEdit={vi.fn()} />);
 
     const sortButton = screen.getByRole('button', { name: /sort by student name/i });
     fireEvent.click(sortButton);
@@ -259,7 +281,7 @@ describe('LessonTable', () => {
       createLesson({ id: 'lesson-1', studentName: 'Alice', date: '2025-01-01' }),
     ];
 
-    render(<LessonTable lessons={lessons} onEdit={vi.fn()} onDelete={onDelete} />);
+    render(<LessonTable schools={SCHOOLS} lessons={lessons} onEdit={vi.fn()} onDelete={onDelete} />);
 
     fireEvent.click(screen.getByRole('button', { name: /delete lesson for alice/i }));
 
@@ -272,46 +294,11 @@ describe('LessonTable', () => {
       createLesson({ id: 'lesson-1', studentName: 'Alice', date: '2025-01-01' }),
     ];
 
-    render(<LessonTable lessons={lessons} onEdit={onEdit} onDelete={vi.fn()} />);
+    render(<LessonTable schools={SCHOOLS} lessons={lessons} onEdit={onEdit} onDelete={vi.fn()} />);
 
     fireEvent.click(screen.getByRole('button', { name: /edit lesson for alice/i }));
 
     expect(onEdit).toHaveBeenCalledWith(lessons[0]);
-  });
-
-  it('filters lessons by selected month', () => {
-    const lessons: Lesson[] = [
-      createLesson({ id: '1', studentName: 'Alice', date: '2025-01-10' }),
-      createLesson({ id: '2', studentName: 'Bob', date: '2025-02-10' }),
-      createLesson({ id: '3', studentName: 'Charlie', date: '2025-03-10' }),
-    ];
-
-    render(<LessonTable lessons={lessons} onDelete={vi.fn()} onEdit={vi.fn()} />);
-
-    selectMonth('1');
-
-    const rows = screen.getAllByRole('row').slice(1);
-    expect(rows).toHaveLength(1);
-    expect(rows[0].textContent).toContain('Bob');
-  });
-
-  it('shows full list when All is selected after month filter', () => {
-    const lessons: Lesson[] = [
-      createLesson({ id: '1', studentName: 'Alice', date: '2025-01-10' }),
-      createLesson({ id: '2', studentName: 'Bob', date: '2025-02-10' }),
-      createLesson({ id: '3', studentName: 'Charlie', date: '2025-03-10' }),
-    ];
-
-    render(<LessonTable lessons={lessons} onDelete={vi.fn()} onEdit={vi.fn()} />);
-
-    selectMonth('1');
-    selectMonth('all');
-
-    const rows = screen.getAllByRole('row').slice(1);
-    expect(rows).toHaveLength(3);
-    expect(rows[0].textContent).toContain('Alice');
-    expect(rows[1].textContent).toContain('Bob');
-    expect(rows[2].textContent).toContain('Charlie');
   });
 
   it('shows lesson type and school before student name, with cost and no page total', () => {
@@ -326,7 +313,7 @@ describe('LessonTable', () => {
       }),
     ];
 
-    render(<LessonTable lessons={lessons} onDelete={vi.fn()} onEdit={vi.fn()} />);
+    render(<LessonTable schools={SCHOOLS} lessons={lessons} onDelete={vi.fn()} onEdit={vi.fn()} />);
 
     const headerCells = screen.getAllByRole('columnheader');
     expect(headerCells[0].textContent).toMatch(/type/i);
@@ -342,16 +329,297 @@ describe('LessonTable', () => {
     expect(screen.queryByText(/^Total:/)).toBeNull();
   });
 
-  it('shows empty filtered state when no lessons match selected month', () => {
+  it('filters lessons by the From/To range, across months', () => {
+    const lessons: Lesson[] = [
+      createLesson({ id: '1', studentName: 'Alice', date: '2025-01-10' }),
+      createLesson({ id: '2', studentName: 'Bob', date: '2025-02-10' }),
+      createLesson({ id: '3', studentName: 'Charlie', date: '2025-03-10' }),
+    ];
+
+    render(<LessonTable schools={SCHOOLS} lessons={lessons} onDelete={vi.fn()} onEdit={vi.fn()} />);
+    setRange('2025-01-05', '2025-02-15');
+
+    expect(dataRows().map((row) => row.textContent)).toEqual([
+      expect.stringContaining('Alice'),
+      expect.stringContaining('Bob'),
+    ]);
+  });
+
+  it('does not allow From to be set after To', () => {
+    render(
+      <LessonTable schools={SCHOOLS} lessons={[createLesson({ id: '1' })]} onDelete={vi.fn()} onEdit={vi.fn()} />
+    );
+
+    fireEvent.change(fromInput(), { target: { value: '2025-03-01' } });
+
+    expect(fromInput().value).toBe('2025-01-31');
+  });
+
+  it('ignores a year that is still being typed and does not save it', () => {
+    render(
+      <LessonTable schools={SCHOOLS} lessons={[createLesson({ id: '1', studentName: 'Kim', date: '2025-01-10' })]} onDelete={vi.fn()} onEdit={vi.fn()} />
+    );
+
+    for (const partial of ['0002-01-31', '0020-01-31', '0202-01-31']) {
+      fireEvent.change(toInput(), { target: { value: partial } });
+      expect(toInput().value).toBe('2025-01-31');
+    }
+    expect(window.localStorage.getItem(FILTER_STORAGE_KEY)).toBeNull();
+
+    fireEvent.change(toInput(), { target: { value: '2025-02-28' } });
+    expect(toInput().value).toBe('2025-02-28');
+  });
+
+  it('does not remember a range that equals the current month', () => {
+    render(
+      <LessonTable schools={SCHOOLS} lessons={[createLesson({ id: '1' })]} onDelete={vi.fn()} onEdit={vi.fn()} />
+    );
+
+    setRange('2025-01-01', '2025-01-31');
+
+    expect(JSON.parse(window.localStorage.getItem(FILTER_STORAGE_KEY) ?? '{}').period).toBeUndefined();
+  });
+
+  it('keeps the last valid range when a date field is cleared', () => {
+    render(
+      <LessonTable schools={SCHOOLS} lessons={[createLesson({ id: '1', studentName: 'Alice', date: '2025-01-10' })]} onDelete={vi.fn()} onEdit={vi.fn()} />
+    );
+    setRange('2025-01-05', '2025-01-20');
+
+    fireEvent.change(fromInput(), { target: { value: '' } });
+
+    expect(fromInput().value).toBe('2025-01-05');
+    expect(dataRows()[0].textContent).toContain('Alice');
+    expect(JSON.parse(window.localStorage.getItem(FILTER_STORAGE_KEY) ?? '{}').period).toEqual({
+      from: '2025-01-05',
+      to: '2025-01-20',
+    });
+  });
+
+  it('sorts lessons without a student name last in both directions', () => {
+    const lessons: Lesson[] = [
+      createLesson({ id: '1', studentName: '', date: '2025-01-01' }),
+      createLesson({ id: '2', studentName: 'Bob', date: '2025-01-02' }),
+      createLesson({ id: '3', studentName: 'Amy', date: '2025-01-03' }),
+    ];
+
+    render(<LessonTable schools={SCHOOLS} lessons={lessons} onDelete={vi.fn()} onEdit={vi.fn()} />);
+    const studentCells = () => dataRows().map((row) => row.querySelectorAll('td')[2].textContent);
+
+    fireEvent.click(screen.getByRole('button', { name: /sort by student name ascending/i }));
+    expect(studentCells()).toEqual(['Amy', 'Bob', '—']);
+
+    fireEvent.click(screen.getByRole('button', { name: /sort by student name descending/i }));
+    expect(studentCells()).toEqual(['Bob', 'Amy', '—']);
+  });
+
+  it('Current month returns to the calendar month and forgets the saved range', () => {
+    const lessons: Lesson[] = [
+      createLesson({ id: '1', studentName: 'Alice', date: '2025-01-10' }),
+      createLesson({ id: '2', studentName: 'Bob', date: '2024-10-10' }),
+    ];
+    const { unmount } = render(
+      <LessonTable schools={SCHOOLS} lessons={lessons} onDelete={vi.fn()} onEdit={vi.fn()} />
+    );
+    const currentMonthButton = () => screen.getByRole('button', { name: 'Current month' }) as HTMLButtonElement;
+    expect(currentMonthButton().disabled).toBe(true);
+
+    setRange('2024-10-01', '2024-10-31');
+    selectSchool('school-east');
+    expect(currentMonthButton().disabled).toBe(false);
+
+    fireEvent.click(currentMonthButton());
+    expect(fromInput().value).toBe('2025-01-01');
+    expect(toInput().value).toBe('2025-01-31');
+    unmount();
+
+    vi.setSystemTime(new Date('2025-03-05T12:00:00Z'));
+    render(<LessonTable schools={SCHOOLS} lessons={lessons} onDelete={vi.fn()} onEdit={vi.fn()} />);
+    expect(fromInput().value).toBe('2025-03-01');
+    expect(schoolSelect().value).toBe('school-east');
+  });
+
+  it('All dates shows every lesson, stays on across visits, and includes later lessons', () => {
+    const lessons: Lesson[] = [
+      createLesson({ id: '1', studentName: 'Alice', date: '2025-01-10' }),
+      createLesson({ id: '2', studentName: 'Bob', date: '2023-06-01' }),
+    ];
+    const { unmount } = render(
+      <LessonTable schools={SCHOOLS} lessons={lessons} onDelete={vi.fn()} onEdit={vi.fn()} />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'All dates' }));
+
+    expect(dataRows()).toHaveLength(2);
+    expect(fromInput().value).toBe('2023-06-01');
+    expect(toInput().value).toBe('2025-01-10');
+    expect(screen.getByRole('button', { name: 'All dates' }).getAttribute('aria-pressed')).toBe('true');
+    unmount();
+
+    const later = [...lessons, createLesson({ id: '3', studentName: 'Cleo', date: '2026-04-01' })];
+    render(<LessonTable schools={SCHOOLS} lessons={later} onDelete={vi.fn()} onEdit={vi.fn()} />);
+    expect(dataRows()).toHaveLength(3);
+    expect(toInput().value).toBe('2026-04-01');
+  });
+
+  it('shows all past lessons of the selected school when switching from Current month to All dates', () => {
+    vi.setSystemTime(new Date('2031-06-15T12:00:00Z'));
+    const lessons: Lesson[] = [
+      createLesson({ id: 'w1', studentName: 'Wanda', date: '2030-02-14', schoolId: 'school-west', schoolTitle: 'West' }),
+      createLesson({ id: 'w2', studentName: 'Walt', date: '2031-03-09', schoolId: 'school-west', schoolTitle: 'West' }),
+      createLesson({ id: 'e1', studentName: 'Eve', date: '2031-06-07', schoolId: 'school-east', schoolTitle: 'East' }),
+      createLesson({ id: 'n1', studentName: 'Nobody', date: '2030-07-19' }),
+    ];
+    render(<LessonTable schools={SCHOOLS} lessons={lessons} onDelete={vi.fn()} onEdit={vi.fn()} />);
+
+    selectSchool('school-west');
+    expect(screen.getByText(/no lessons found for the selected filters/i)).toBeDefined();
+
+    fireEvent.click(screen.getByRole('button', { name: 'All dates' }));
+    expect(dataRows().map((row) => row.textContent)).toEqual([
+      expect.stringContaining('Wanda'),
+      expect.stringContaining('Walt'),
+    ]);
+
+    setRange('2030-02-01', '2031-06-30');
+    expect(dataRows()).toHaveLength(2);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Current month' }));
+    expect(screen.getByText(/no lessons found for the selected filters/i)).toBeDefined();
+  });
+
+  it('leaves All dates when a date is edited', () => {
+    const lessons: Lesson[] = [
+      createLesson({ id: '1', studentName: 'Alice', date: '2025-01-10' }),
+      createLesson({ id: '2', studentName: 'Bob', date: '2023-06-01' }),
+    ];
+    render(<LessonTable schools={SCHOOLS} lessons={lessons} onDelete={vi.fn()} onEdit={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'All dates' }));
+
+    fireEvent.change(fromInput(), { target: { value: '2024-01-01' } });
+
+    expect(screen.getByRole('button', { name: 'All dates' }).getAttribute('aria-pressed')).toBe('false');
+    expect(dataRows().map((row) => row.textContent)).toEqual([expect.stringContaining('Alice')]);
+  });
+
+  it('filters lessons by school', () => {
+    const lessons: Lesson[] = [
+      createLesson({ id: '1', studentName: 'Alice', date: '2025-01-10', schoolId: 'school-east', schoolTitle: 'East' }),
+      createLesson({ id: '2', studentName: 'Bob', date: '2025-01-11', schoolId: 'school-west', schoolTitle: 'West' }),
+      createLesson({ id: '3', studentName: 'Cleo', date: '2025-01-12' }),
+    ];
+
+    render(<LessonTable schools={SCHOOLS} lessons={lessons} onDelete={vi.fn()} onEdit={vi.fn()} />);
+
+    expect(dataRows()).toHaveLength(3);
+    expect([...schoolSelect().options].map((option) => option.textContent)).toEqual(['All schools', 'East', 'West']);
+
+    selectSchool('school-west');
+    expect(dataRows().map((row) => row.textContent)).toEqual([expect.stringContaining('Bob')]);
+
+    selectSchool('all');
+    expect(dataRows()).toHaveLength(3);
+  });
+
+  it('remembers a changed range and school for the next visit', () => {
+    const lessons: Lesson[] = [
+      createLesson({ id: '1', studentName: 'Alice', date: '2025-01-10', schoolId: 'school-east' }),
+      createLesson({ id: '2', studentName: 'Bob', date: '2024-12-20', schoolId: 'school-west' }),
+    ];
+
+    const { unmount } = render(
+      <LessonTable schools={SCHOOLS} lessons={lessons} onDelete={vi.fn()} onEdit={vi.fn()} />
+    );
+    setRange('2024-12-01', '2024-12-31');
+    selectSchool('school-west');
+    unmount();
+
+    render(<LessonTable schools={SCHOOLS} lessons={lessons} onDelete={vi.fn()} onEdit={vi.fn()} />);
+
+    expect(fromInput().value).toBe('2024-12-01');
+    expect(toInput().value).toBe('2024-12-31');
+    expect(schoolSelect().value).toBe('school-west');
+    expect(dataRows().map((row) => row.textContent)).toEqual([expect.stringContaining('Bob')]);
+  });
+
+  it('keeps the current-month default until the user changes a filter', () => {
+    const { unmount } = render(
+      <LessonTable schools={SCHOOLS} lessons={[createLesson({ id: '1' })]} onDelete={vi.fn()} onEdit={vi.fn()} />
+    );
+    unmount();
+
+    expect(window.localStorage.getItem(FILTER_STORAGE_KEY)).toBeNull();
+
+    vi.setSystemTime(new Date('2025-02-03T12:00:00Z'));
+    render(
+      <LessonTable schools={SCHOOLS} lessons={[createLesson({ id: '1' })]} onDelete={vi.fn()} onEdit={vi.fn()} />
+    );
+    expect(fromInput().value).toBe('2025-02-01');
+    expect(toInput().value).toBe('2025-02-28');
+  });
+
+  it('remembers only the school when only the school was changed', () => {
+    const { unmount } = render(
+      <LessonTable schools={SCHOOLS} lessons={[createLesson({ id: '1' })]} onDelete={vi.fn()} onEdit={vi.fn()} />
+    );
+    selectSchool('school-east');
+    unmount();
+
+    vi.setSystemTime(new Date('2025-02-03T12:00:00Z'));
+    render(
+      <LessonTable schools={SCHOOLS} lessons={[createLesson({ id: '1' })]} onDelete={vi.fn()} onEdit={vi.fn()} />
+    );
+
+    expect(schoolSelect().value).toBe('school-east');
+    expect(fromInput().value).toBe('2025-02-01');
+  });
+
+  it('falls back to all schools when the remembered school no longer exists', () => {
+    window.localStorage.setItem(FILTER_STORAGE_KEY, JSON.stringify({ schoolId: 'school-deleted' }));
+    const lessons: Lesson[] = [createLesson({ id: '1', studentName: 'Alice', date: '2025-01-10', schoolId: 'school-east' })];
+
+    render(<LessonTable schools={SCHOOLS} lessons={lessons} onDelete={vi.fn()} onEdit={vi.fn()} />);
+
+    expect(schoolSelect().value).toBe('all');
+    expect(dataRows()).toHaveLength(1);
+  });
+
+  it('ignores unreadable saved filters', () => {
+    window.localStorage.setItem(FILTER_STORAGE_KEY, '{not json');
+
+    render(
+      <LessonTable schools={SCHOOLS} lessons={[createLesson({ id: '1' })]} onDelete={vi.fn()} onEdit={vi.fn()} />
+    );
+
+    expect(fromInput().value).toBe('2025-01-01');
+    expect(schoolSelect().value).toBe('all');
+  });
+
+  it('shows a dash and date-only button labels for a lesson without a student', () => {
+    render(
+      <LessonTable
+        schools={SCHOOLS}
+        lessons={[createLesson({ id: '1', studentName: '', date: '2025-01-10' })]}
+        onDelete={vi.fn()}
+        onEdit={vi.fn()}
+      />
+    );
+
+    expect(dataRows()[0].querySelectorAll('td')[2].textContent).toBe('—');
+    expect(screen.getByRole('button', { name: 'Edit lesson on 10.01.2025' })).toBeDefined();
+    expect(screen.getByRole('button', { name: 'Delete lesson on 10.01.2025' })).toBeDefined();
+  });
+
+  it('shows empty filtered state when no lessons match the filters', () => {
     const lessons: Lesson[] = [
       createLesson({ id: '1', studentName: 'Alice', date: '2025-01-10' }),
       createLesson({ id: '2', studentName: 'Bob', date: '2025-02-10' }),
     ];
 
-    render(<LessonTable lessons={lessons} onDelete={vi.fn()} onEdit={vi.fn()} />);
+    render(<LessonTable schools={SCHOOLS} lessons={lessons} onDelete={vi.fn()} onEdit={vi.fn()} />);
 
-    selectMonth('11');
+    setRange('2025-11-01', '2025-11-30');
 
-    expect(screen.getByText(/no lessons found for the selected month/i)).toBeDefined();
+    expect(screen.getByText(/no lessons found for the selected filters/i)).toBeDefined();
   });
 });

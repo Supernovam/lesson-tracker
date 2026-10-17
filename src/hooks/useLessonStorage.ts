@@ -95,17 +95,16 @@ export function useLessonStorage() {
     setLessons((prev) => prev.map((item) => (item.id === id ? lesson : item)));
   }, []);
 
-  const deleteLesson = useCallback((id: string) => {
-    apiFetch(`/api/lessons/${encodeURIComponent(id)}`, {
+  const deleteLesson = useCallback(async (id: string) => {
+    const res = await apiFetch(`/api/lessons/${encodeURIComponent(id)}`, {
       method: 'DELETE',
-    })
-      .then((res) => {
-        if (!res.ok && res.status !== 404) throw new Error(`${res.status} ${res.statusText}`);
-      })
-      .then(() => setLessons((prev) => prev.filter((l) => l.id !== id)))
-      .catch((err) => {
-        console.error('Failed to delete lesson:', err);
-      });
+    });
+    // The API answers 204 even for an id that is already gone; a 404 is treated the same way.
+    if (!res.ok && res.status !== 404) {
+      const text = await res.text().catch(() => '');
+      throw errorFromResponse(text, res.status, res.statusText);
+    }
+    setLessons((prev) => prev.filter((l) => l.id !== id));
   }, []);
 
   const lessonsByDate = [...lessons].sort(
