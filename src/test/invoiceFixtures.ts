@@ -16,9 +16,9 @@ export const FAKE_INVOICE_SETTINGS: InvoiceSettings = {
 };
 
 export const FAKE_SCHOOL: School = {
-  id: 'school-east',
-  title: 'East Campus',
-  billingName: 'East Campus GmbH',
+  id: 'school-alpha',
+  title: 'Alpha Campus',
+  billingName: 'Alpha Campus GmbH',
   address: 'Client Str. 2\n54321 Client City',
   createdAt: 1,
   updatedAt: 1,
@@ -40,10 +40,10 @@ export function createLesson(overrides: Partial<Lesson> = {}): Lesson {
     comment: '',
     createdAt: 1,
     lessonTypeId: 'type-1',
-    lessonTypeName: 'EZU-P',
+    lessonTypeName: 'Type A',
     schoolId: FAKE_SCHOOL.id,
     schoolTitle: FAKE_SCHOOL.title,
-    calculatedPrice: 25.33,
+    calculatedPrice: 37.33,
     ...overrides,
   };
 }

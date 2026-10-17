@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import { Router } from 'express';
 import { requireAuth } from '../auth.js';
+import { requireDbReady, isUniqueViolation, isForeignKeyViolation } from './routeHelpers.js';
 
 const SCHOOL_RETURNING = `
   id,
@@ -10,14 +11,6 @@ const SCHOOL_RETURNING = `
   created_at AS "createdAt",
   updated_at AS "updatedAt"
 `;
-
-function isUniqueViolation(err) {
-  return Boolean(err && err.code === '23505');
-}
-
-function isForeignKeyViolation(err) {
-  return Boolean(err && err.code === '23503');
-}
 
 function parseSchoolBody(body) {
   const title = typeof body.title === 'string' ? body.title.trim() : '';
@@ -34,9 +27,9 @@ function parseSchoolBody(body) {
 export function createSchoolsRouter({ pool, isDbReady }) {
   const router = Router();
   router.use(requireAuth);
+  router.use(requireDbReady(isDbReady));
 
   router.get('/', async (_req, res) => {
-    if (!isDbReady()) return res.status(503).json({ ok: false, error: 'db not ready' });
     try {
       const { rows } = await pool.query(`
         SELECT ${SCHOOL_RETURNING}
@@ -51,7 +44,6 @@ export function createSchoolsRouter({ pool, isDbReady }) {
   });
 
   router.post('/', async (req, res) => {
-    if (!isDbReady()) return res.status(503).json({ ok: false, error: 'db not ready' });
     const parsed = parseSchoolBody(req.body ?? {});
     if (parsed.error) return res.status(400).json({ error: parsed.error });
 
@@ -78,7 +70,6 @@ export function createSchoolsRouter({ pool, isDbReady }) {
   });
 
   router.put('/:id', async (req, res) => {
-    if (!isDbReady()) return res.status(503).json({ ok: false, error: 'db not ready' });
     const { id } = req.params;
     if (!id) return res.status(400).json({ error: 'id is required' });
 
@@ -109,7 +100,6 @@ export function createSchoolsRouter({ pool, isDbReady }) {
   });
 
   router.delete('/:id', async (req, res) => {
-    if (!isDbReady()) return res.status(503).json({ ok: false, error: 'db not ready' });
     const { id } = req.params;
     if (!id) return res.status(400).json({ error: 'id is required' });
 

@@ -1,7 +1,7 @@
 import type { InvoiceRecipient, IssuedInvoice } from '../types/invoice';
 import type { Lesson } from '../types/lesson';
 import type { School } from '../types/school';
-import { formatDisplayDate, formatDuration, formatInvoicePrice } from './format';
+import { formatDisplayDate, formatDuration, formatInvoicePrice, safeFilenamePart } from './format';
 import { filterLessonsByDateRange, isIsoDate } from './dateRange';
 import { sortLessons } from './lessonTableData';
 
@@ -21,10 +21,6 @@ export function mapLessonToInvoiceRow(lesson: Lesson): [string, string, string, 
 
 export function lessonsMissingPrice(lessons: Lesson[]): Lesson[] {
   return lessons.filter((lesson) => lesson.calculatedPrice == null);
-}
-
-export function sumLessonPrices(lessons: Lesson[]): number {
-  return Math.round(lessons.reduce((sum, lesson) => sum + (lesson.calculatedPrice ?? 0), 0) * 100) / 100;
 }
 
 export function recipientAddressLines(address: string): string[] {
@@ -86,11 +82,6 @@ export function canDownloadInvoices(lessons: Lesson[], schools: School[]): boole
   if (!canExportInvoice(lessons)) return false;
   const { missingSchool, unknownSchool } = partitionInvoicesBySchool(lessons, schools);
   return missingSchool.length === 0 && unknownSchool.length === 0;
-}
-
-export function safeFilenamePart(value: string): string {
-  const cleaned = value.trim().replace(/[\\/:*?"<>|]+/g, '-').replace(/\s+/g, ' ');
-  return cleaned || 'school';
 }
 
 export function invoiceFilename(schoolTitle: string, from: string, to: string): string {

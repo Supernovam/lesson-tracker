@@ -3,7 +3,11 @@ import { renderHook, act, waitFor } from '@testing-library/react';
 import { useLessonStorage } from './useLessonStorage';
 import { apiFetch } from '../api/config';
 
-vi.mock('../api/config', () => ({ apiFetch: vi.fn() }));
+// Only the network call is faked; error and abort helpers stay real.
+vi.mock('../api/config', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../api/config')>()),
+  apiFetch: vi.fn(),
+}));
 
 const mockedApiFetch = vi.mocked(apiFetch);
 
@@ -36,9 +40,9 @@ const lesson = {
   createdAt: 10,
   lessonTypeId: 'type-private',
   lessonTypeName: 'Private Course',
-  schoolId: 'school-east',
-  schoolTitle: 'East Campus',
-  calculatedPrice: 25.33,
+  schoolId: 'school-alpha',
+  schoolTitle: 'Alpha Campus',
+  calculatedPrice: 37.33,
 };
 
 const formData = {
@@ -47,7 +51,7 @@ const formData = {
   duration: 60,
   comment: '  Good  ',
   lessonTypeId: '  type-private  ',
-  schoolId: '  school-east  ',
+  schoolId: '  school-alpha  ',
 };
 
 describe('useLessonStorage', () => {
@@ -66,7 +70,7 @@ describe('useLessonStorage', () => {
     const { result } = renderHook(() => useLessonStorage());
 
     await waitFor(() => expect(result.current.lessons).toHaveLength(1));
-    expect(result.current.lessons[0].calculatedPrice).toBe(25.33);
+    expect(result.current.lessons[0].calculatedPrice).toBe(37.33);
     expect(result.current.status).toBe('ready');
   });
 
@@ -109,7 +113,7 @@ describe('useLessonStorage', () => {
       duration: 60,
       comment: 'Good',
       lessonTypeId: 'type-private',
-      schoolId: 'school-east',
+      schoolId: 'school-alpha',
     });
   });
 
@@ -125,7 +129,7 @@ describe('useLessonStorage', () => {
     expect(result.current.lessons).toHaveLength(1);
     expect(result.current.lessons[0]).toMatchObject({
       lessonTypeName: 'Private Course',
-      calculatedPrice: 25.33,
+      calculatedPrice: 37.33,
     });
   });
 
@@ -160,7 +164,7 @@ describe('useLessonStorage', () => {
     const { result } = renderHook(() => useLessonStorage());
     await waitFor(() => expect(result.current.lessons).toHaveLength(1));
 
-    const updated = { ...lesson, studentName: 'Alex B', duration: 90, calculatedPrice: 38 };
+    const updated = { ...lesson, studentName: 'Alex B', duration: 90, calculatedPrice: 56 };
     mockedApiFetch.mockResolvedValueOnce(jsonResponse(updated));
     await act(async () => {
       await result.current.updateLesson('lesson-1', { ...formData, studentName: 'Alex B', duration: 90 });
@@ -174,10 +178,10 @@ describe('useLessonStorage', () => {
       studentName: 'Alex B',
       duration: 90,
       lessonTypeId: 'type-private',
-      schoolId: 'school-east',
+      schoolId: 'school-alpha',
     });
     expect(result.current.lessons).toHaveLength(1);
-    expect(result.current.lessons[0]).toMatchObject({ studentName: 'Alex B', calculatedPrice: 38 });
+    expect(result.current.lessons[0]).toMatchObject({ studentName: 'Alex B', calculatedPrice: 56 });
   });
 
   it('keeps the existing lesson when an update fails', async () => {

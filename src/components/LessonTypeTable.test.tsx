@@ -6,7 +6,7 @@ import type { LessonType } from '../types/lessonType';
 const createLessonType = (overrides: Partial<LessonType>): LessonType => ({
   id: crypto.randomUUID(),
   name: 'Private Course',
-  basePrice: 19,
+  basePrice: 28,
   baseDurationMinutes: 45,
   createdAt: 0,
   updatedAt: 0,
@@ -23,7 +23,7 @@ describe('LessonTypeTable', () => {
   it('renders lesson types with price and duration', () => {
     render(
       <LessonTypeTable
-        lessonTypes={[createLessonType({ id: '1', name: 'Present Course', basePrice: 63, baseDurationMinutes: 150 })]}
+        lessonTypes={[createLessonType({ id: '1', name: 'Present Course', basePrice: 50, baseDurationMinutes: 150 })]}
         onEdit={vi.fn()}
         onDelete={vi.fn()}
       />
@@ -31,7 +31,7 @@ describe('LessonTypeTable', () => {
 
     expect(screen.getByText('Present Course')).toBeDefined();
     expect(screen.getByText('150 min')).toBeDefined();
-    expect(screen.getByText(/^63,00\s€$/)).toBeDefined();
+    expect(screen.getByText(/^50,00\s€$/)).toBeDefined();
   });
 
   it('calls onEdit and onDelete for a row', () => {

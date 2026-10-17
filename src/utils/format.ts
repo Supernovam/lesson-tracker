@@ -1,3 +1,5 @@
+import type { Lesson } from '../types/lesson';
+
 /** European date display: DD.MM.YYYY. Single formatter keeps output consistent. */
 const dateFormatter = new Intl.DateTimeFormat('de-DE', {
   day: '2-digit',
@@ -67,4 +69,15 @@ export function formatInvoicePrice(amount: number): string {
 export function describeLesson(lesson: { studentName: string; date: string }): string {
   const student = lesson.studentName ? ` for ${lesson.studentName}` : '';
   return `lesson${student} on ${formatDisplayDate(lesson.date)}`;
+}
+
+/** Sum of lesson prices in euros, rounded to cents; unpriced lessons count as 0. */
+export function sumLessonPrices(lessons: Lesson[]): number {
+  return Math.round(lessons.reduce((sum, lesson) => sum + (lesson.calculatedPrice ?? 0), 0) * 100) / 100;
+}
+
+/** Makes text safe for a download filename: strips path and reserved characters. */
+export function safeFilenamePart(value: string): string {
+  const cleaned = value.trim().replace(/[\\/:*?"<>|]+/g, '-').replace(/\s+/g, ' ');
+  return cleaned || 'school';
 }

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { LessonType, LessonTypeFormData } from '../types/lessonType';
-import { apiFetch, isAbortError } from '../api/config';
+import { apiFetch, errorFromResponse, isAbortError } from '../api/config';
 
 async function fetchLessonTypes(signal?: AbortSignal): Promise<LessonType[]> {
   const res = await apiFetch('/api/lesson-types', { signal });
@@ -8,17 +8,6 @@ async function fetchLessonTypes(signal?: AbortSignal): Promise<LessonType[]> {
     throw new Error(`Failed to load lesson types: ${res.status} ${res.statusText}`);
   }
   return (await res.json()) as LessonType[];
-}
-
-function errorFromResponse(text: string, status: number, statusText: string): Error {
-  let parsedError: string | undefined;
-  try {
-    const parsed = JSON.parse(text);
-    if (parsed && typeof parsed.error === 'string') parsedError = parsed.error;
-  } catch {
-    // ignore JSON parse errors and fall back below
-  }
-  return new Error(parsedError || text || `${status} ${statusText}`);
 }
 
 function toPayload(formData: LessonTypeFormData) {
@@ -62,8 +51,7 @@ export function useLessonTypeStorage() {
     });
 
     if (!res.ok) {
-      const text = await res.text().catch(() => '');
-      throw errorFromResponse(text, res.status, res.statusText);
+      throw await errorFromResponse(res);
     }
 
     const lessonType = (await res.json()) as LessonType;
@@ -77,8 +65,7 @@ export function useLessonTypeStorage() {
     });
 
     if (!res.ok) {
-      const text = await res.text().catch(() => '');
-      throw errorFromResponse(text, res.status, res.statusText);
+      throw await errorFromResponse(res);
     }
 
     const lessonType = (await res.json()) as LessonType;
@@ -94,8 +81,7 @@ export function useLessonTypeStorage() {
       return;
     }
     if (!res.ok) {
-      const text = await res.text().catch(() => '');
-      throw errorFromResponse(text, res.status, res.statusText);
+      throw await errorFromResponse(res);
     }
     setLessonTypes((prev) => prev.filter((item) => item.id !== id));
   }, []);

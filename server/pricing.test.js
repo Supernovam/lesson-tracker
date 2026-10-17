@@ -3,6 +3,6 @@ import { calculateSessionPrice } from './pricing.js';
 
 describe('calculateSessionPrice', () => {
   it('calculates a proportional price rounded to 2 decimals', () => {
-    expect(calculateSessionPrice(60, 45, 19)).toBe(25.33);
+    expect(calculateSessionPrice(60, 45, 28)).toBe(37.33);
   });
 });

@@ -7,7 +7,13 @@ import { useLessonStorage } from '../hooks/useLessonStorage';
 import { useSchoolStorage } from '../hooks/useSchoolStorage';
 import type { IssuedInvoice } from '../types/invoice';
 import { currentCalendarMonthBounds, type DateRange } from '../utils/dateRange';
-import { describeLesson, formatDisplayDate, formatInvoicePrice, getTodayISO } from '../utils/format';
+import {
+  describeLesson,
+  formatDisplayDate,
+  formatInvoicePrice,
+  getTodayISO,
+  sumLessonPrices,
+} from '../utils/format';
 import {
   canDownloadInvoices,
   formatInvoiceNumber,
@@ -16,7 +22,6 @@ import {
   mapLessonToInvoiceRow,
   partitionInvoicesBySchool,
   planInvoiceNumbers,
-  sumLessonPrices,
   type SchoolInvoice,
 } from '../utils/invoiceData';
 import { downloadInvoicePdfs } from '../utils/invoicePdf';

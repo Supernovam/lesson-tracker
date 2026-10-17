@@ -39,7 +39,7 @@ function failingPool(code) {
   });
 }
 
-const validBody = { name: 'Private Course', basePrice: 19, baseDurationMinutes: 45 };
+const validBody = { name: 'Private Course', basePrice: 28, baseDurationMinutes: 45 };
 
 describe('GET /api/lesson-types', () => {
   it('returns types ordered by name with a numeric price', async () => {
@@ -48,7 +48,7 @@ describe('GET /api/lesson-types', () => {
         {
           id: 'type-1',
           name: 'Private Course',
-          basePrice: '19.00',
+          basePrice: '28.00',
           baseDurationMinutes: 45,
           createdAt: 1,
           updatedAt: 2,
@@ -59,7 +59,7 @@ describe('GET /api/lesson-types', () => {
     const res = await request(appFor(pool)).get('/api/lesson-types');
 
     expect(res.status).toBe(200);
-    expect(res.body[0].basePrice).toBe(19);
+    expect(res.body[0].basePrice).toBe(28);
     expect(queryFor(pool, 'ORDER BY name ASC')).toBeDefined();
   });
 
@@ -78,7 +78,7 @@ describe('POST /api/lesson-types', () => {
     expect(res.status).toBe(201);
     expect(res.body).toMatchObject({
       name: 'Private Course',
-      basePrice: 19,
+      basePrice: 28,
       baseDurationMinutes: 45,
     });
     expect(res.body.createdAt).toBe(res.body.updatedAt);
@@ -97,7 +97,7 @@ describe('POST /api/lesson-types', () => {
   it.each([
     ['a blank name', { name: '   ' }, /name is required/],
     ['a negative price', { basePrice: -1 }, /basePrice must be a number/],
-    ['a price with too many decimals', { basePrice: 19.999 }, /at most 2 decimal places/],
+    ['a price with too many decimals', { basePrice: 28.999 }, /at most 2 decimal places/],
     ['a zero duration', { baseDurationMinutes: 0 }, /baseDurationMinutes must be an integer/],
     ['an out-of-range duration', { baseDurationMinutes: 10000 }, /baseDurationMinutes must be an integer/],
   ])('rejects %s', async (_label, override, expected) => {
@@ -137,10 +137,10 @@ describe('PUT /api/lesson-types/:id', () => {
 
     const res = await request(appFor(pool))
       .put('/api/lesson-types/type-1')
-      .send({ name: 'Private Course', basePrice: 21.5, baseDurationMinutes: 60 });
+      .send({ name: 'Private Course', basePrice: 23.5, baseDurationMinutes: 60 });
 
     expect(res.status).toBe(200);
-    expect(res.body).toMatchObject({ basePrice: 21.5, baseDurationMinutes: 60 });
+    expect(res.body).toMatchObject({ basePrice: 23.5, baseDurationMinutes: 60 });
     expect(res.body.updatedAt).toBeGreaterThan(res.body.createdAt);
   });
 

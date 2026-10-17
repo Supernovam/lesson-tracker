@@ -27,8 +27,8 @@ const baseLesson = (overrides: Partial<Lesson> = {}): Lesson => ({
   lessonTypeId: 'type-1',
   lessonTypeName: 'Private Course',
   schoolId: 'school-1',
-  schoolTitle: 'East Campus',
-  calculatedPrice: 19,
+  schoolTitle: 'Alpha Campus',
+  calculatedPrice: 28,
   ...overrides,
 });
 
@@ -53,7 +53,7 @@ describe('LessonExcelExporter', () => {
     it('exports only lessons of the selected school', () => {
       const lessons: Lesson[] = [
         baseLesson({ id: 'a', date: '2025-01-10' }),
-        baseLesson({ id: 'b', date: '2025-01-11', studentName: 'Bob', schoolId: 'school-2', schoolTitle: 'West' }),
+        baseLesson({ id: 'b', date: '2025-01-11', studentName: 'Bob', schoolId: 'school-2', schoolTitle: 'Beta' }),
       ];
 
       const rows = LessonExcelExporter.buildDataRows(lessons, { ...january, schoolId: 'school-2' }, null);
@@ -132,7 +132,7 @@ describe('LessonExcelExporter', () => {
       const row = LessonExcelExporter.mapLessonToDisplayRow(lesson);
       expect(row).toEqual([
         'Present Course',
-        'East Campus',
+        'Alpha Campus',
         'Pat',
         '08.03.2025',
         '120 min',
@@ -161,25 +161,25 @@ describe('LessonExcelExporter', () => {
         baseLesson({
           id: 'a',
           lessonTypeName: 'Private Course',
-          calculatedPrice: 25.33,
+          calculatedPrice: 37.33,
         }),
         baseLesson({
           id: 'b',
           studentName: 'Bob',
           lessonTypeName: 'Present Course',
-          calculatedPrice: 63,
+          calculatedPrice: 50,
         }),
         baseLesson({
           id: 'c',
           studentName: 'Carol',
           lessonTypeName: 'Private Course',
-          calculatedPrice: 19,
+          calculatedPrice: 28,
         }),
       ];
 
       const rows = LessonExcelExporter.buildWorkbookRows(lessons, wholeYear, null);
       expect(rows[0]).toEqual([...LessonExcelExporter.COLUMN_HEADERS]);
-      expect(rows).toContainEqual(['Total', '', '', '', '', '107,33\u00A0€', '']);
+      expect(rows).toContainEqual(['Total', '', '', '', '', '115,33\u00A0€', '']);
       expect(rows.some((row) => row[0] === 'Breakdown by lesson type')).toBe(false);
     });
   });
@@ -194,8 +194,8 @@ describe('LessonExcelExporter', () => {
     });
 
     it('adds the school title when filtered to one school', () => {
-      expect(LessonExcelExporter.filenameForExport({ ...january, schoolId: 'school-1' }, 'East/Campus')).toBe(
-        'lessons-export-East-Campus-2025-01-01-to-2025-01-31.xlsx'
+      expect(LessonExcelExporter.filenameForExport({ ...january, schoolId: 'school-1' }, 'Alpha/Campus')).toBe(
+        'lessons-export-Alpha-Campus-2025-01-01-to-2025-01-31.xlsx'
       );
     });
 

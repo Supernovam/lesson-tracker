@@ -31,9 +31,9 @@ function failingPool(code) {
 }
 
 const validBody = {
-  title: 'East Campus',
-  billingName: 'East Campus GmbH',
-  address: 'Main St\n10115 Berlin',
+  title: 'Alpha Campus',
+  billingName: 'Alpha Campus GmbH',
+  address: 'Main St\n12345 Sampletown',
 };
 
 describe('GET /api/schools', () => {
@@ -42,8 +42,8 @@ describe('GET /api/schools', () => {
       rows: [
         {
           id: 'school-1',
-          title: 'East Campus',
-          billingName: 'East Campus GmbH',
+          title: 'Alpha Campus',
+          billingName: 'Alpha Campus GmbH',
           address: 'Main St',
           createdAt: 1,
           updatedAt: 2,
@@ -54,7 +54,7 @@ describe('GET /api/schools', () => {
     const res = await request(appFor(pool)).get('/api/schools');
 
     expect(res.status).toBe(200);
-    expect(res.body[0].title).toBe('East Campus');
+    expect(res.body[0].title).toBe('Alpha Campus');
     expect(queryFor(pool, 'ORDER BY title ASC')).toBeDefined();
   });
 
@@ -71,16 +71,16 @@ describe('POST /api/schools', () => {
     const res = await request(appFor(pool))
       .post('/api/schools')
       .send({
-        title: '  East Campus  ',
-        billingName: '  East Campus GmbH  ',
-        address: '  Main St\n10115 Berlin  ',
+        title: '  Alpha Campus  ',
+        billingName: '  Alpha Campus GmbH  ',
+        address: '  Main St\n12345 Sampletown  ',
       });
 
     expect(res.status).toBe(201);
     expect(res.body).toMatchObject({
-      title: 'East Campus',
-      billingName: 'East Campus GmbH',
-      address: 'Main St\n10115 Berlin',
+      title: 'Alpha Campus',
+      billingName: 'Alpha Campus GmbH',
+      address: 'Main St\n12345 Sampletown',
     });
     expect(res.body.createdAt).toBe(res.body.updatedAt);
   });
@@ -113,13 +113,13 @@ describe('PUT /api/schools/:id', () => {
 
     const res = await request(appFor(pool))
       .put('/api/schools/school-1')
-      .send({ title: 'West Campus', billingName: 'West Campus GmbH', address: 'Side St' });
+      .send({ title: 'Beta Campus', billingName: 'Beta Campus GmbH', address: 'Side St' });
 
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({
       id: 'school-1',
-      title: 'West Campus',
-      billingName: 'West Campus GmbH',
+      title: 'Beta Campus',
+      billingName: 'Beta Campus GmbH',
       address: 'Side St',
     });
   });

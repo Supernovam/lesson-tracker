@@ -15,14 +15,14 @@ const { lesson, lessonType, school, updateLesson, addLesson, deleteLesson } = vi
     createdAt: 1,
     lessonTypeId: 'private',
     lessonTypeName: 'Private Course',
-    schoolId: 'east',
-    schoolTitle: 'East Campus',
-    calculatedPrice: 25.33,
+    schoolId: 'alpha',
+    schoolTitle: 'Alpha Campus',
+    calculatedPrice: 37.33,
   };
   const school: School = {
-    id: 'east',
-    title: 'East Campus',
-    billingName: 'East Campus GmbH',
+    id: 'alpha',
+    title: 'Alpha Campus',
+    billingName: 'Alpha Campus GmbH',
     address: 'Main St',
     createdAt: 1,
     updatedAt: 1,
@@ -30,7 +30,7 @@ const { lesson, lessonType, school, updateLesson, addLesson, deleteLesson } = vi
   const lessonType: LessonType = {
     id: 'private',
     name: 'Private Course',
-    basePrice: 19,
+    basePrice: 28,
     baseDurationMinutes: 45,
     createdAt: 1,
     updatedAt: 1,
@@ -98,7 +98,7 @@ describe('LessonsPage', () => {
       expect.objectContaining({
         studentName: 'Alex B',
         lessonTypeId: 'private',
-        schoolId: 'east',
+        schoolId: 'alpha',
         duration: 60,
         comment: 'Went well',
       })

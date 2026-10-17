@@ -9,7 +9,7 @@ const lessonTypes: LessonType[] = [
   {
     id: 'private',
     name: 'Private Course',
-    basePrice: 19,
+    basePrice: 28,
     baseDurationMinutes: 45,
     createdAt: 1,
     updatedAt: 1,
@@ -17,7 +17,7 @@ const lessonTypes: LessonType[] = [
   {
     id: 'present',
     name: 'Present Course',
-    basePrice: 63,
+    basePrice: 50,
     baseDurationMinutes: 150,
     createdAt: 1,
     updatedAt: 1,
@@ -26,10 +26,10 @@ const lessonTypes: LessonType[] = [
 
 const schools: School[] = [
   {
-    id: 'east',
-    title: 'East Campus',
-    billingName: 'East Campus GmbH',
-    address: 'Main St\n10115 Berlin',
+    id: 'alpha',
+    title: 'Alpha Campus',
+    billingName: 'Alpha Campus GmbH',
+    address: 'Main St\n12345 Sampletown',
     createdAt: 1,
     updatedAt: 1,
   },
@@ -44,9 +44,9 @@ const editingLesson: Lesson = {
   createdAt: 1,
   lessonTypeId: 'private',
   lessonTypeName: 'Private Course',
-  schoolId: 'east',
-  schoolTitle: 'East Campus',
-  calculatedPrice: 25.33,
+  schoolId: 'alpha',
+  schoolTitle: 'Alpha Campus',
+  calculatedPrice: 37.33,
 };
 
 describe('LessonForm', () => {
@@ -63,7 +63,7 @@ describe('LessonForm', () => {
 
     expect(screen.getByText(/^student name/i, { selector: 'label' }).textContent).toMatch(/\(optional\)/);
     fireEvent.change(screen.getByLabelText(/lesson type/i), { target: { value: 'private' } });
-    fireEvent.change(screen.getByLabelText(/^school$/i), { target: { value: 'east' } });
+    fireEvent.change(screen.getByLabelText(/^school$/i), { target: { value: 'alpha' } });
     fireEvent.click(screen.getByRole('button', { name: /save lesson/i }));
 
     await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
@@ -74,10 +74,10 @@ describe('LessonForm', () => {
   it('shows a live price preview when a type and duration are set', () => {
     render(<LessonForm lessonTypes={lessonTypes} schools={schools} onSubmit={vi.fn()} />);
     fireEvent.change(screen.getByLabelText(/lesson type/i), { target: { value: 'private' } });
-    expect(screen.getByText(/estimated cost/i).textContent).toMatch(/19,00/);
+    expect(screen.getByText(/estimated cost/i).textContent).toMatch(/28,00/);
 
     fireEvent.change(screen.getByLabelText(/duration/i), { target: { value: '60' } });
-    expect(screen.getByText(/estimated cost/i).textContent).toMatch(/25,33/);
+    expect(screen.getByText(/estimated cost/i).textContent).toMatch(/37,33/);
   });
 
   it('submits the selected lesson type with the lesson', async () => {
@@ -86,7 +86,7 @@ describe('LessonForm', () => {
 
     fireEvent.change(screen.getByLabelText(/student name/i), { target: { value: 'Alex' } });
     fireEvent.change(screen.getByLabelText(/lesson type/i), { target: { value: 'present' } });
-    fireEvent.change(screen.getByLabelText(/^school$/i), { target: { value: 'east' } });
+    fireEvent.change(screen.getByLabelText(/^school$/i), { target: { value: 'alpha' } });
     fireEvent.change(screen.getByLabelText(/comment/i), { target: { value: 'Went well' } });
     fireEvent.click(screen.getByRole('button', { name: /save lesson/i }));
 
@@ -95,7 +95,7 @@ describe('LessonForm', () => {
       expect.objectContaining({
         studentName: 'Alex',
         lessonTypeId: 'present',
-        schoolId: 'east',
+        schoolId: 'alpha',
         duration: 150,
         comment: 'Went well',
       })
@@ -136,7 +136,7 @@ describe('LessonForm', () => {
 
     fireEvent.blur(duration);
     expect(duration.value).toBe('150');
-    expect(screen.getByText(/estimated cost/i).textContent).toMatch(/63,00/);
+    expect(screen.getByText(/estimated cost/i).textContent).toMatch(/50,00/);
   });
 
   it('leaves the duration empty on blur when no type is selected', () => {
@@ -166,14 +166,14 @@ describe('LessonForm', () => {
 
     fireEvent.change(screen.getByLabelText(/student name/i), { target: { value: 'Alex' } });
     fireEvent.change(screen.getByLabelText(/lesson type/i), { target: { value: 'private' } });
-    fireEvent.change(screen.getByLabelText(/^school$/i), { target: { value: 'east' } });
+    fireEvent.change(screen.getByLabelText(/^school$/i), { target: { value: 'alpha' } });
     fireEvent.click(screen.getByRole('button', { name: /save lesson/i }));
 
     await waitFor(() =>
       expect((screen.getByLabelText(/student name/i) as HTMLInputElement).value).toBe('')
     );
     expect((screen.getByLabelText(/lesson type/i) as HTMLSelectElement).value).toBe('private');
-    expect((screen.getByLabelText(/^school$/i) as HTMLSelectElement).value).toBe('east');
+    expect((screen.getByLabelText(/^school$/i) as HTMLSelectElement).value).toBe('alpha');
   });
 
   it('restores the retained type base duration after a successful submit', async () => {
@@ -182,14 +182,14 @@ describe('LessonForm', () => {
 
     fireEvent.change(screen.getByLabelText(/student name/i), { target: { value: 'Alex' } });
     fireEvent.change(screen.getByLabelText(/lesson type/i), { target: { value: 'present' } });
-    fireEvent.change(screen.getByLabelText(/^school$/i), { target: { value: 'east' } });
+    fireEvent.change(screen.getByLabelText(/^school$/i), { target: { value: 'alpha' } });
     fireEvent.click(screen.getByRole('button', { name: /save lesson/i }));
 
     await waitFor(() =>
       expect((screen.getByLabelText(/student name/i) as HTMLInputElement).value).toBe('')
     );
     expect((screen.getByLabelText(/duration/i) as HTMLInputElement).value).toBe('150');
-    expect(screen.getByText(/estimated cost/i).textContent).toMatch(/63,00/);
+    expect(screen.getByText(/estimated cost/i).textContent).toMatch(/50,00/);
   });
 
   it('shows the server message when saving fails', async () => {
@@ -198,7 +198,7 @@ describe('LessonForm', () => {
 
     fireEvent.change(screen.getByLabelText(/student name/i), { target: { value: 'Alex' } });
     fireEvent.change(screen.getByLabelText(/lesson type/i), { target: { value: 'private' } });
-    fireEvent.change(screen.getByLabelText(/^school$/i), { target: { value: 'east' } });
+    fireEvent.change(screen.getByLabelText(/^school$/i), { target: { value: 'alpha' } });
     fireEvent.click(screen.getByRole('button', { name: /save lesson/i }));
 
     expect((await screen.findByRole('alert')).textContent).toBe('lessonTypeId is invalid');
@@ -259,7 +259,7 @@ describe('LessonForm', () => {
     expect((screen.getByLabelText(/^date$/i) as HTMLInputElement).value).toBe('2026-03-08');
     expect((screen.getByLabelText(/duration/i) as HTMLInputElement).value).toBe('60');
     expect((screen.getByLabelText(/comment/i) as HTMLTextAreaElement).value).toBe('Went well');
-    expect(screen.getByText(/estimated cost/i).textContent).toMatch(/25,33/);
+    expect(screen.getByText(/estimated cost/i).textContent).toMatch(/37,33/);
 
     fireEvent.change(screen.getByLabelText(/student name/i), { target: { value: 'Alex B' } });
     fireEvent.click(screen.getByRole('button', { name: /update lesson/i }));
@@ -269,7 +269,7 @@ describe('LessonForm', () => {
       expect.objectContaining({
         studentName: 'Alex B',
         lessonTypeId: 'private',
-        schoolId: 'east',
+        schoolId: 'alpha',
         duration: 60,
         date: '2026-03-08',
         comment: 'Went well',

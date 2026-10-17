@@ -1,7 +1,6 @@
 import * as XLSX from 'xlsx';
 import type { Lesson } from '../types/lesson';
-import { formatDisplayDate, formatDuration, formatPrice } from './format';
-import { safeFilenamePart, sumLessonPrices } from './invoiceData';
+import { formatDisplayDate, formatDuration, formatPrice, safeFilenamePart, sumLessonPrices } from './format';
 import { ALL_DATES, getLessonsForDisplay, type LessonFilter, type SortState } from './lessonTableData';
 
 export type LessonDisplayRow = readonly [string, string, string, string, string, string, string];

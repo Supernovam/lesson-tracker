@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import { Router } from 'express';
 import { requireAuth } from '../auth.js';
+import { requireDbReady } from './routeHelpers.js';
 import { calculateSessionPrice } from '../pricing.js';
 
 const LESSON_RETURNING = `
@@ -122,9 +123,9 @@ async function resolveLessonWrite(pool, parsed) {
 export function createLessonsRouter({ pool, isDbReady }) {
   const router = Router();
   router.use(requireAuth);
+  router.use(requireDbReady(isDbReady));
 
   router.get('/', async (_req, res) => {
-    if (!isDbReady()) return res.status(503).json({ ok: false, error: 'db not ready' });
     try {
       const { rows } = await pool.query(`
         SELECT ${LESSON_RETURNING}
@@ -142,7 +143,6 @@ export function createLessonsRouter({ pool, isDbReady }) {
   });
 
   router.post('/', async (req, res) => {
-    if (!isDbReady()) return res.status(503).json({ ok: false, error: 'db not ready' });
     const parsed = parseLessonBody(req.body ?? {});
     if (parsed.error) return res.status(400).json({ error: parsed.error });
 
@@ -183,7 +183,6 @@ export function createLessonsRouter({ pool, isDbReady }) {
   });
 
   router.put('/:id', async (req, res) => {
-    if (!isDbReady()) return res.status(503).json({ ok: false, error: 'db not ready' });
     const { id } = req.params;
     if (!id) return res.status(400).json({ error: 'id is required' });
 
@@ -230,7 +229,6 @@ export function createLessonsRouter({ pool, isDbReady }) {
   });
 
   router.delete('/:id', async (req, res) => {
-    if (!isDbReady()) return res.status(503).json({ ok: false, error: 'db not ready' });
     const { id } = req.params;
     if (!id) return res.status(400).json({ error: 'id is required' });
 

@@ -6,17 +6,17 @@ import { createFakePool, createTestApp, queryFor } from './testHelpers.js';
 const privateCourse = {
   id: 'type-private',
   name: 'Private Course',
-  basePrice: '19.00',
+  basePrice: '28.00',
   baseDurationMinutes: 45,
 };
 
-const eastCampus = {
-  id: 'school-east',
-  title: 'East Campus',
+const alphaCampus = {
+  id: 'school-alpha',
+  title: 'Alpha Campus',
 };
 
 /** Resolves the lesson-type and school lookups, then echoes writes back like Postgres would. */
-function pricingPool(lessonType = privateCourse, school = eastCampus) {
+function pricingPool(lessonType = privateCourse, school = alphaCampus) {
   return createFakePool((sql, params) => {
     if (sql.includes('FROM schools')) {
       return { rows: school ? [school] : [] };
@@ -86,7 +86,7 @@ const validBody = {
   duration: 60,
   comment: 'Good session',
   lessonTypeId: 'type-private',
-  schoolId: 'school-east',
+  schoolId: 'school-alpha',
 };
 
 describe('GET /api/lessons', () => {
@@ -102,9 +102,9 @@ describe('GET /api/lessons', () => {
           createdAt: 1,
           lessonTypeId: 'type-private',
           lessonTypeName: 'Private Course',
-          schoolId: 'school-east',
-          schoolTitle: 'East Campus',
-          calculatedPrice: '25.33',
+          schoolId: 'school-alpha',
+          schoolTitle: 'Alpha Campus',
+          calculatedPrice: '37.33',
         },
       ],
     }));
@@ -115,9 +115,9 @@ describe('GET /api/lessons', () => {
     expect(res.body[0]).toMatchObject({
       lessonTypeId: 'type-private',
       lessonTypeName: 'Private Course',
-      schoolId: 'school-east',
-      schoolTitle: 'East Campus',
-      calculatedPrice: 25.33,
+      schoolId: 'school-alpha',
+      schoolTitle: 'Alpha Campus',
+      calculatedPrice: 37.33,
     });
   });
 
@@ -168,23 +168,23 @@ describe('POST /api/lessons', () => {
     const res = await request(appFor(pool)).post('/api/lessons').send(validBody);
 
     expect(res.status).toBe(201);
-    // 60 minutes against a 19.00 / 45 minute type.
-    expect(res.body.calculatedPrice).toBe(25.33);
+    // 60 minutes against a 28.00 / 45 minute type.
+    expect(res.body.calculatedPrice).toBe(37.33);
     expect(res.body.lessonTypeId).toBe('type-private');
     expect(res.body.lessonTypeName).toBe('Private Course');
-    expect(res.body.schoolId).toBe('school-east');
-    expect(res.body.schoolTitle).toBe('East Campus');
+    expect(res.body.schoolId).toBe('school-alpha');
+    expect(res.body.schoolTitle).toBe('Alpha Campus');
 
     const insert = queryFor(pool, 'INSERT INTO lessons');
     expect(insert.params).toContain('type-private');
-    expect(insert.params).toContain(25.33);
+    expect(insert.params).toContain(37.33);
   });
 
   it('charges the base price when the duration matches the base duration', async () => {
     const pool = pricingPool({
       id: 'type-present',
       name: 'Present Course',
-      basePrice: '63.00',
+      basePrice: '50.00',
       baseDurationMinutes: 150,
     });
 
@@ -192,7 +192,7 @@ describe('POST /api/lessons', () => {
       .post('/api/lessons')
       .send({ ...validBody, duration: 150, lessonTypeId: 'type-present' });
 
-    expect(res.body.calculatedPrice).toBe(63);
+    expect(res.body.calculatedPrice).toBe(50);
   });
 
   it('rejects a missing lesson type', async () => {
@@ -293,27 +293,27 @@ describe('PUT /api/lessons/:id', () => {
       .send({ ...validBody, duration: 90, studentName: 'Alex B' });
 
     expect(res.status).toBe(200);
-    // 90 minutes against a 19.00 / 45 minute type.
+    // 90 minutes against a 28.00 / 45 minute type.
     expect(res.body).toMatchObject({
       id: 'lesson-1',
       studentName: 'Alex B',
       duration: 90,
       lessonTypeId: 'type-private',
       lessonTypeName: 'Private Course',
-      schoolId: 'school-east',
-      schoolTitle: 'East Campus',
-      calculatedPrice: 38,
+      schoolId: 'school-alpha',
+      schoolTitle: 'Alpha Campus',
+      calculatedPrice: 56,
     });
 
     const update = queryFor(pool, 'UPDATE lessons');
     expect(update.params[0]).toBe('lesson-1');
-    expect(update.params).toContain(38);
+    expect(update.params).toContain(56);
   });
 
   it('returns 404 when the lesson is gone', async () => {
     const pool = createFakePool((sql) => {
       if (sql.includes('FROM lesson_types')) return { rows: [privateCourse] };
-      if (sql.includes('FROM schools')) return { rows: [eastCampus] };
+      if (sql.includes('FROM schools')) return { rows: [alphaCampus] };
       return { rows: [] };
     });
 

@@ -39,10 +39,10 @@ const mockedIssue = vi.fn();
 
 const WEST_SCHOOL = {
   ...FAKE_SCHOOL,
-  id: 'school-west',
-  title: 'West Campus',
-  billingName: 'West Campus GmbH',
-  address: 'Other Str. 9\n10115 Berlin',
+  id: 'school-beta',
+  title: 'Beta Campus',
+  billingName: 'Beta Campus GmbH',
+  address: 'Other Str. 9\n12345 Sampletown',
 };
 
 function mockIssued(invoices: IssuedInvoice[] = [], nextNumber = 12) {
@@ -62,8 +62,8 @@ function mockTwoSchoolPeriod() {
     deleteSchool: vi.fn(),
   });
   mockLessons([
-    createLesson({ id: 'west', date: '2026-09-04', schoolId: WEST_SCHOOL.id, schoolTitle: WEST_SCHOOL.title }),
-    createLesson({ id: 'east', date: '2026-09-03' }),
+    createLesson({ id: 'beta', date: '2026-09-04', schoolId: WEST_SCHOOL.id, schoolTitle: WEST_SCHOOL.title }),
+    createLesson({ id: 'alpha', date: '2026-09-03' }),
   ]);
 }
 
@@ -102,7 +102,7 @@ describe('InvoicesPage', () => {
   });
 
   it('defaults the billed period to the current calendar month', () => {
-    mockLessons([createLesson({ date: '2026-09-03', calculatedPrice: 38 })]);
+    mockLessons([createLesson({ date: '2026-09-03', calculatedPrice: 56 })]);
 
     render(<InvoicesPage />);
 
@@ -116,9 +116,9 @@ describe('InvoicesPage', () => {
 
   it('previews and downloads lessons in the from-to period, including the previous month', () => {
     const lessons = [
-      createLesson({ id: 'aug', studentName: 'Mayumi', date: '2026-08-25', calculatedPrice: 25.33 }),
-      createLesson({ id: 'sep', studentName: 'Alex', date: '2026-09-03', calculatedPrice: 38 }),
-      createLesson({ id: 'after', studentName: 'Sam', date: '2026-09-25', calculatedPrice: 38 }),
+      createLesson({ id: 'aug', studentName: 'Robin', date: '2026-08-25', calculatedPrice: 37.33 }),
+      createLesson({ id: 'sep', studentName: 'Alex', date: '2026-09-03', calculatedPrice: 56 }),
+      createLesson({ id: 'after', studentName: 'Sam', date: '2026-09-25', calculatedPrice: 56 }),
     ];
     mockLessons(lessons);
 
@@ -132,7 +132,7 @@ describe('InvoicesPage', () => {
     });
 
     const preview = screen.getByRole('table', { name: /invoice preview/i });
-    expect(preview.textContent).toContain('Mayumi');
+    expect(preview.textContent).toContain('Robin');
     expect(preview.textContent).toContain('Alex');
     expect(preview.textContent).not.toContain('Sam');
     expect(preview.textContent).toContain('Unterricht');
@@ -141,8 +141,8 @@ describe('InvoicesPage', () => {
     expect(screen.getByLabelText(/invoice preview summary/i).textContent).toMatch(
       /1 invoice for 2 lessons in this period/i
     );
-    expect(screen.getByLabelText(/invoice preview summary/i).textContent).toContain('63,33€');
-    expect(screen.getByRole('region', { name: /invoice for east campus gmbh/i })).toBeDefined();
+    expect(screen.getByLabelText(/invoice preview summary/i).textContent).toContain('93,33€');
+    expect(screen.getByRole('region', { name: /invoice for alpha campus gmbh/i })).toBeDefined();
 
     fireEvent.click(screen.getByRole('button', { name: /download invoice pdf/i }));
 
@@ -150,7 +150,7 @@ describe('InvoicesPage', () => {
       FAKE_INVOICE_SETTINGS,
       [
         expect.objectContaining({
-          recipient: expect.objectContaining({ billingName: 'East Campus GmbH' }),
+          recipient: expect.objectContaining({ billingName: 'Alpha Campus GmbH' }),
           lessons: [expect.objectContaining({ id: 'aug' }), expect.objectContaining({ id: 'sep' })],
         }),
       ],
@@ -159,28 +159,28 @@ describe('InvoicesPage', () => {
   });
 
   it('downloads one PDF per school in the period', () => {
-    const west = {
+    const beta = {
       ...FAKE_SCHOOL,
-      id: 'school-west',
-      title: 'West Campus',
-      billingName: 'West Campus GmbH',
-      address: 'Other Str. 9\n10115 Berlin',
+      id: 'school-beta',
+      title: 'Beta Campus',
+      billingName: 'Beta Campus GmbH',
+      address: 'Other Str. 9\n12345 Sampletown',
     };
     mockedUseSchoolStorage.mockReturnValue({
-      schools: [FAKE_SCHOOL, west],
+      schools: [FAKE_SCHOOL, beta],
       status: 'ready',
       addSchool: vi.fn(),
       updateSchool: vi.fn(),
       deleteSchool: vi.fn(),
     });
     const lessons = [
-      createLesson({ id: 'east', studentName: 'Alex', date: '2026-09-03', calculatedPrice: 38 }),
+      createLesson({ id: 'alpha', studentName: 'Alex', date: '2026-09-03', calculatedPrice: 56 }),
       createLesson({
-        id: 'west',
-        studentName: 'Mayumi',
+        id: 'beta',
+        studentName: 'Robin',
         date: '2026-09-04',
-        schoolId: west.id,
-        schoolTitle: west.title,
+        schoolId: beta.id,
+        schoolTitle: beta.title,
         calculatedPrice: 25,
       }),
     ];
@@ -196,8 +196,8 @@ describe('InvoicesPage', () => {
     expect(mockedDownload).toHaveBeenCalledWith(
       FAKE_INVOICE_SETTINGS,
       [
-        expect.objectContaining({ recipient: expect.objectContaining({ title: 'East Campus' }) }),
-        expect.objectContaining({ recipient: expect.objectContaining({ title: 'West Campus' }) }),
+        expect.objectContaining({ recipient: expect.objectContaining({ title: 'Alpha Campus' }) }),
+        expect.objectContaining({ recipient: expect.objectContaining({ title: 'Beta Campus' }) }),
       ],
       { from: '2026-09-01', to: '2026-09-30' }
     );
@@ -232,7 +232,7 @@ describe('InvoicesPage', () => {
         date: '2026-09-03',
         schoolId: null,
         schoolTitle: null,
-        calculatedPrice: 38,
+        calculatedPrice: 56,
       }),
     ]);
 
@@ -247,7 +247,7 @@ describe('InvoicesPage', () => {
 
   it('blocks download when invoice details are missing', () => {
     mockedUseInvoiceSettings.mockReturnValue({ settings: null, status: 'missing' });
-    mockLessons([createLesson({ date: '2026-09-03', calculatedPrice: 38 })]);
+    mockLessons([createLesson({ date: '2026-09-03', calculatedPrice: 56 })]);
 
     render(<InvoicesPage />);
 
@@ -258,7 +258,7 @@ describe('InvoicesPage', () => {
   });
 
   it('does not allow From to be set after To', () => {
-    mockLessons([createLesson({ date: '2026-09-03', calculatedPrice: 38 })]);
+    mockLessons([createLesson({ date: '2026-09-03', calculatedPrice: 56 })]);
 
     render(<InvoicesPage />);
 
@@ -295,7 +295,7 @@ describe('InvoicesPage', () => {
 
   describe('issuing Rechnungsnummern', () => {
     it('draft download does not issue a number', () => {
-      mockLessons([createLesson({ date: '2026-09-03', calculatedPrice: 38 })]);
+      mockLessons([createLesson({ date: '2026-09-03', calculatedPrice: 56 })]);
 
       render(<InvoicesPage />);
       fireEvent.click(screen.getByRole('button', { name: /download invoice pdf/i }));
@@ -316,10 +316,10 @@ describe('InvoicesPage', () => {
       fireEvent.click(screen.getByRole('button', { name: /^issue invoices$/i }));
 
       const confirm = screen.getByRole('group', { name: /confirm issuing invoices/i });
-      expect(confirm.textContent).toContain('East Campus → 12/26');
-      expect(confirm.textContent).toContain('West Campus → 13/26');
+      expect(confirm.textContent).toContain('Alpha Campus → 12/26');
+      expect(confirm.textContent).toContain('Beta Campus → 13/26');
       const confirmText = confirm.textContent ?? '';
-      expect(confirmText.indexOf('East Campus')).toBeLessThan(confirmText.indexOf('West Campus'));
+      expect(confirmText.indexOf('Alpha Campus')).toBeLessThan(confirmText.indexOf('Beta Campus'));
       expect(mockedIssue).not.toHaveBeenCalled();
 
       fireEvent.click(screen.getByRole('button', { name: /confirm and download/i }));
@@ -329,8 +329,8 @@ describe('InvoicesPage', () => {
         expect(mockedDownload).toHaveBeenCalledWith(
           FAKE_INVOICE_SETTINGS,
           [
-            expect.objectContaining({ recipient: expect.objectContaining({ title: 'East Campus' }) }),
-            expect.objectContaining({ recipient: expect.objectContaining({ title: 'West Campus' }) }),
+            expect.objectContaining({ recipient: expect.objectContaining({ title: 'Alpha Campus' }) }),
+            expect.objectContaining({ recipient: expect.objectContaining({ title: 'Beta Campus' }) }),
           ],
           { from: '2026-09-01', to: '2026-09-30' },
           issued
@@ -351,14 +351,14 @@ describe('InvoicesPage', () => {
 
     it('shows issued numbers, offers Download again, and only issues the remaining school', async () => {
       mockTwoSchoolPeriod();
-      const eastIssued = issuedFor(FAKE_SCHOOL.id, 12);
-      mockIssued([eastIssued], 13);
+      const alphaIssued = issuedFor(FAKE_SCHOOL.id, 12);
+      mockIssued([alphaIssued], 13);
 
       render(<InvoicesPage />);
 
-      const east = screen.getByRole('region', { name: /invoice for east campus gmbh/i });
-      expect(east.textContent).toContain('Issued as 12/26 on 20.09.2026');
-      expect(screen.getByRole('region', { name: /invoice for west campus gmbh/i }).textContent).not.toContain(
+      const alpha = screen.getByRole('region', { name: /invoice for alpha campus gmbh/i });
+      expect(alpha.textContent).toContain('Issued as 12/26 on 20.09.2026');
+      expect(screen.getByRole('region', { name: /invoice for beta campus gmbh/i }).textContent).not.toContain(
         'Issued as'
       );
 
@@ -366,17 +366,17 @@ describe('InvoicesPage', () => {
       await waitFor(() =>
         expect(mockedDownload).toHaveBeenCalledWith(
           FAKE_INVOICE_SETTINGS,
-          [expect.objectContaining({ recipient: expect.objectContaining({ title: 'East Campus' }) })],
+          [expect.objectContaining({ recipient: expect.objectContaining({ title: 'Alpha Campus' }) })],
           { from: '2026-09-01', to: '2026-09-30' },
-          [eastIssued]
+          [alphaIssued]
         )
       );
       expect(mockedIssue).not.toHaveBeenCalled();
 
       fireEvent.click(screen.getByRole('button', { name: /^issue invoice$/i }));
       const confirm = screen.getByRole('group', { name: /confirm issuing invoices/i });
-      expect(confirm.textContent).toContain('West Campus → 13/26');
-      expect(confirm.textContent).not.toContain('East Campus');
+      expect(confirm.textContent).toContain('Beta Campus → 13/26');
+      expect(confirm.textContent).not.toContain('Alpha Campus');
     });
 
     it('disables Issue once every school in the period has a number', () => {
@@ -401,7 +401,7 @@ describe('InvoicesPage', () => {
 
     it('numbers the first invoice of a new year 01/yy', () => {
       vi.setSystemTime(new Date('2027-01-01T09:00:00Z'));
-      mockLessons([createLesson({ date: '2026-12-10', calculatedPrice: 38 })]);
+      mockLessons([createLesson({ date: '2026-12-10', calculatedPrice: 56 })]);
       mockIssued([], 1);
 
       render(<InvoicesPage />);
@@ -411,7 +411,7 @@ describe('InvoicesPage', () => {
 
       expect(mockedUseIssuedInvoices).toHaveBeenLastCalledWith('2026-12-01', '2026-12-31', 2027);
       expect(screen.getByRole('group', { name: /confirm issuing invoices/i }).textContent).toContain(
-        'East Campus → 01/27'
+        'Alpha Campus → 01/27'
       );
     });
   });

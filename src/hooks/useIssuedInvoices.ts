@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { apiFetch, isAbortError } from '../api/config';
+import { apiFetch, errorFromResponse, isAbortError } from '../api/config';
 import type { IssuedInvoice } from '../types/invoice';
 
 export type IssuedInvoicesState =
@@ -8,16 +8,6 @@ export type IssuedInvoicesState =
   | { status: 'error'; invoices: IssuedInvoice[]; nextNumber: null };
 
 type IssuedInvoicesResponse = { invoices: IssuedInvoice[]; nextNumber: number };
-
-async function errorFromResponse(res: Response, fallback: string): Promise<Error> {
-  try {
-    const parsed = JSON.parse(await res.text());
-    if (parsed && typeof parsed.error === 'string') return new Error(parsed.error);
-  } catch {
-    // ignore JSON parse errors and fall back below
-  }
-  return new Error(`${fallback}: ${res.status} ${res.statusText}`);
-}
 
 async function fetchIssuedInvoices(
   from: string,

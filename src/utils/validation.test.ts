@@ -103,7 +103,7 @@ describe('parseDuration', () => {
 describe('validateLessonTypeForm', () => {
   const validData = {
     name: 'Private Course',
-    basePrice: 19,
+    basePrice: 28,
     baseDurationMinutes: 45,
   };
 
@@ -131,7 +131,7 @@ describe('validateLessonTypeForm', () => {
   });
 
   it('returns error when base price has more than 2 decimal places', () => {
-    const result = validateLessonTypeForm({ ...validData, basePrice: 19.999 });
+    const result = validateLessonTypeForm({ ...validData, basePrice: 28.999 });
     expect(result.valid).toBe(false);
     expect(result.errors.basePrice).toBe('Base price must have at most 2 decimal places');
   });
@@ -152,9 +152,9 @@ describe('validateLessonTypeForm', () => {
 describe('validateSchoolForm', () => {
   it('returns valid for a title, billing name, and address', () => {
     const result = validateSchoolForm({
-      title: 'East Campus',
-      billingName: 'East Campus GmbH',
-      address: 'Main St\n10115 Berlin',
+      title: 'Alpha Campus',
+      billingName: 'Alpha Campus GmbH',
+      address: 'Main St\n12345 Sampletown',
     });
     expect(result.valid).toBe(true);
   });
