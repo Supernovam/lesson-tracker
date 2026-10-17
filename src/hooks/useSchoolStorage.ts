@@ -33,8 +33,11 @@ function toPayload(formData: SchoolFormData) {
  * Custom hook for schools persisted in Neon Postgres.
  * Returns schools sorted by title.
  */
+export type SchoolStorageStatus = 'loading' | 'ready' | 'error';
+
 export function useSchoolStorage() {
   const [schools, setSchools] = useState<School[]>([]);
+  const [status, setStatus] = useState<SchoolStorageStatus>('loading');
 
   useEffect(() => {
     const controller = new AbortController();
@@ -42,7 +45,9 @@ export function useSchoolStorage() {
 
     fetchSchools(controller.signal)
       .then((data) => {
-        if (isMounted) setSchools(data);
+        if (!isMounted) return;
+        setSchools(data);
+        setStatus('ready');
       })
       .catch((err) => {
         const maybeName =
@@ -53,6 +58,7 @@ export function useSchoolStorage() {
               : undefined;
         if (maybeName === 'AbortError') return;
         console.error(err);
+        if (isMounted) setStatus('error');
       });
 
     return () => {
@@ -110,6 +116,7 @@ export function useSchoolStorage() {
 
   return {
     schools: schoolsByTitle,
+    status,
     addSchool,
     updateSchool,
     deleteSchool,

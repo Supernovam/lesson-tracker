@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { Lesson, LessonFormData } from '../types/lesson';
-import { apiFetch } from '../api/config';
+import { apiFetch, isAbortError } from '../api/config';
 
 async function fetchLessons(signal?: AbortSignal): Promise<Lesson[]> {
   const res = await apiFetch('/api/lessons', { signal });
@@ -36,8 +36,11 @@ function toPayload(formData: LessonFormData) {
  * Custom hook for lesson list persisted in Neon Postgres.
  * Returns lessons sorted by date (chronological, oldest first).
  */
+export type LessonStorageStatus = 'loading' | 'ready' | 'error';
+
 export function useLessonStorage() {
   const [lessons, setLessons] = useState<Lesson[]>([]);
+  const [status, setStatus] = useState<LessonStorageStatus>('loading');
 
   useEffect(() => {
     const controller = new AbortController();
@@ -45,18 +48,14 @@ export function useLessonStorage() {
 
     fetchLessons(controller.signal)
       .then((data) => {
-        if (isMounted) setLessons(data);
+        if (!isMounted) return;
+        setLessons(data);
+        setStatus('ready');
       })
       .catch((err) => {
-        // Ignore cancellation triggered by unmount.
-        const maybeName =
-          err instanceof Error
-            ? err.name
-            : typeof err === 'object' && err !== null && 'name' in err
-              ? (err as { name?: unknown }).name
-              : undefined;
-        if (maybeName === 'AbortError') return;
+        if (isAbortError(err)) return;
         console.error(err);
+        if (isMounted) setStatus('error');
       });
 
     return () => {
@@ -118,5 +117,5 @@ export function useLessonStorage() {
     }
   );
 
-  return { lessons: lessonsByDate, addLesson, updateLesson, deleteLesson };
+  return { lessons: lessonsByDate, status, addLesson, updateLesson, deleteLesson };
 }

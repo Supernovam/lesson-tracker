@@ -54,4 +54,33 @@ export async function ensureSchema(pool) {
     ALTER TABLE lessons
       ADD COLUMN IF NOT EXISTS school_id text REFERENCES schools(id) ON DELETE RESTRICT
   `);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS invoice_settings (
+      id text PRIMARY KEY,
+      issuer_name text NOT NULL,
+      issuer_street text NOT NULL,
+      issuer_postal_code text NOT NULL,
+      issuer_city text NOT NULL,
+      issuer_phone text NOT NULL,
+      issuer_email text NOT NULL,
+      issuer_tax_number text NOT NULL,
+      issuer_iban text NOT NULL,
+      issuer_bic text NOT NULL,
+      updated_at bigint NOT NULL
+    );
+  `);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS issued_invoices (
+      id text PRIMARY KEY,
+      school_id text NOT NULL REFERENCES schools(id) ON DELETE RESTRICT,
+      period_from date NOT NULL,
+      period_to date NOT NULL,
+      year integer NOT NULL,
+      number integer NOT NULL CHECK (number > 0),
+      issued_on date NOT NULL,
+      created_at bigint NOT NULL,
+      UNIQUE (school_id, period_from, period_to),
+      UNIQUE (year, number)
+    );
+  `);
 }

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { LessonType, LessonTypeFormData } from '../types/lessonType';
-import { apiFetch } from '../api/config';
+import { apiFetch, isAbortError } from '../api/config';
 
 async function fetchLessonTypes(signal?: AbortSignal): Promise<LessonType[]> {
   const res = await apiFetch('/api/lesson-types', { signal });
@@ -45,13 +45,7 @@ export function useLessonTypeStorage() {
         if (isMounted) setLessonTypes(data);
       })
       .catch((err) => {
-        const maybeName =
-          err instanceof Error
-            ? err.name
-            : typeof err === 'object' && err !== null && 'name' in err
-              ? (err as { name?: unknown }).name
-              : undefined;
-        if (maybeName === 'AbortError') return;
+        if (isAbortError(err)) return;
         console.error(err);
       });
 

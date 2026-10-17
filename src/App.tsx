@@ -1,11 +1,25 @@
 import { useState } from 'react';
 import { LoginScreen } from './components/LoginScreen';
 import { useAuth } from './hooks/useAuth';
+import { InvoicesPage } from './pages/InvoicesPage';
 import { LessonsPage } from './pages/LessonsPage';
 import { LessonTypesPage } from './pages/LessonTypesPage';
 import { SchoolsPage } from './pages/SchoolsPage';
 
-type Tab = 'lessons' | 'lesson-types' | 'schools';
+type Tab = 'lessons' | 'lesson-types' | 'schools' | 'invoices';
+
+function renderTab(tab: Tab) {
+  switch (tab) {
+    case 'lessons':
+      return <LessonsPage />;
+    case 'lesson-types':
+      return <LessonTypesPage />;
+    case 'schools':
+      return <SchoolsPage />;
+    case 'invoices':
+      return <InvoicesPage />;
+  }
+}
 
 function TrackerApp({
   userEmail,
@@ -65,11 +79,17 @@ function TrackerApp({
           >
             Schools
           </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('invoices')}
+            className={tabClass('invoices')}
+            aria-current={activeTab === 'invoices' ? 'page' : undefined}
+          >
+            Invoices
+          </button>
         </nav>
 
-        {activeTab === 'lessons' && <LessonsPage />}
-        {activeTab === 'lesson-types' && <LessonTypesPage />}
-        {activeTab === 'schools' && <SchoolsPage />}
+        {renderTab(activeTab)}
       </main>
     </div>
   );

@@ -67,6 +67,27 @@ describe('useLessonStorage', () => {
 
     await waitFor(() => expect(result.current.lessons).toHaveLength(1));
     expect(result.current.lessons[0].calculatedPrice).toBe(25.33);
+    expect(result.current.status).toBe('ready');
+  });
+
+  it('starts in a loading state until lessons arrive', async () => {
+    let resolveLessons: ((value: Response) => void) | undefined;
+    mockedApiFetch.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveLessons = resolve;
+      })
+    );
+
+    const { result } = renderHook(() => useLessonStorage());
+    expect(result.current.status).toBe('loading');
+    expect(result.current.lessons).toEqual([]);
+
+    await act(async () => {
+      resolveLessons?.(jsonResponse([lesson]));
+    });
+
+    await waitFor(() => expect(result.current.status).toBe('ready'));
+    expect(result.current.lessons).toHaveLength(1);
   });
 
   it('sends the trimmed lesson type id when creating a lesson', async () => {

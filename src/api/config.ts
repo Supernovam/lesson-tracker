@@ -45,3 +45,7 @@ export async function apiFetch(path: string, init: ApiFetchInit = {}) {
     headers,
   });
 }
+
+export function isAbortError(err: unknown): boolean {
+  return Boolean(err && typeof err === 'object' && 'name' in err && err.name === 'AbortError');
+}
