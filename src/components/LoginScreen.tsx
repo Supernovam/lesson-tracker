@@ -17,7 +17,7 @@ export function LoginScreen({ error }: LoginScreenProps) {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4 font-sans text-slate-800 antialiased">
-      <main className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-8 shadow-sm">
+      <main className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-8 shadow-xs">
         <h1 className="text-2xl font-bold tracking-tight text-slate-900">Lesson Tracker</h1>
         <p className="mt-2 text-sm text-slate-600">
           Sign in with a Google account that has been granted access.
@@ -34,7 +34,7 @@ export function LoginScreen({ error }: LoginScreenProps) {
         ) : (
           <a
             href={apiUrl('/auth/google')}
-            className="mt-6 inline-flex w-full items-center justify-center rounded-md border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-800 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2"
+            className="mt-6 inline-flex w-full items-center justify-center rounded-md border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-800 hover:bg-slate-50 focus:outline-hidden focus:ring-2 focus:ring-slate-400 focus:ring-offset-2"
           >
             Continue with Google
           </a>

@@ -50,7 +50,7 @@ export function Callout({
         <button
           type="button"
           onClick={onDismiss}
-          className={`-m-1 rounded p-1 transition focus:outline-none focus:ring-2 ${styles.dismiss}`}
+          className={`-m-1 rounded-sm p-1 transition focus:outline-hidden focus:ring-2 ${styles.dismiss}`}
           aria-label="Dismiss message"
         >
           <X className="h-4 w-4" aria-hidden />

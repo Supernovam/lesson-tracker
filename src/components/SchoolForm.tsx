@@ -70,7 +70,7 @@ export function SchoolForm({ editing, onSubmit, onCancelEdit }: SchoolFormProps)
   return (
     <form
       onSubmit={handleSubmit}
-      className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
+      className="rounded-xl border border-slate-200 bg-white p-6 shadow-xs"
       aria-labelledby="school-form-title"
       noValidate
     >
@@ -89,7 +89,7 @@ export function SchoolForm({ editing, onSubmit, onCancelEdit }: SchoolFormProps)
             type="text"
             value={formData.title}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateField('title', e.target.value)}
-            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-800 placeholder-slate-400 focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-800 placeholder-slate-400 focus:border-slate-500 focus:outline-hidden focus:ring-1 focus:ring-slate-500"
             placeholder="e.g. East Campus"
             aria-invalid={Boolean(errors.title)}
             aria-describedby={errors.title ? 'school-title-error school-title-hint' : 'school-title-hint'}
@@ -113,7 +113,7 @@ export function SchoolForm({ editing, onSubmit, onCancelEdit }: SchoolFormProps)
             type="text"
             value={formData.billingName}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateField('billingName', e.target.value)}
-            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-800 placeholder-slate-400 focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-800 placeholder-slate-400 focus:border-slate-500 focus:outline-hidden focus:ring-1 focus:ring-slate-500"
             placeholder="e.g. East Campus GmbH"
             aria-invalid={Boolean(errors.billingName)}
             aria-describedby={errors.billingName ? 'school-billing-name-error school-billing-name-hint' : 'school-billing-name-hint'}
@@ -137,7 +137,7 @@ export function SchoolForm({ editing, onSubmit, onCancelEdit }: SchoolFormProps)
             value={formData.address}
             onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => updateField('address', e.target.value)}
             rows={3}
-            className="w-full resize-y rounded-lg border border-slate-300 px-3 py-2 text-slate-800 placeholder-slate-400 focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+            className="w-full resize-y rounded-lg border border-slate-300 px-3 py-2 text-slate-800 placeholder-slate-400 focus:border-slate-500 focus:outline-hidden focus:ring-1 focus:ring-slate-500"
             placeholder={'Street\nPostal code and city'}
             aria-invalid={Boolean(errors.address)}
             aria-describedby={errors.address ? 'school-address-error' : undefined}
@@ -158,7 +158,7 @@ export function SchoolForm({ editing, onSubmit, onCancelEdit }: SchoolFormProps)
         )}
         <button
           type="submit"
-          className="w-full rounded-lg bg-slate-800 px-4 py-2.5 font-medium text-white transition hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 sm:w-auto sm:min-w-[140px]"
+          className="w-full rounded-lg bg-slate-800 px-4 py-2.5 font-medium text-white transition hover:bg-slate-700 focus:outline-hidden focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 sm:w-auto sm:min-w-[140px]"
           disabled={isSubmitting}
         >
           {isSubmitting ? 'Saving...' : isEditing ? 'Update school' : 'Save school'}

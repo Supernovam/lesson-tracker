@@ -52,7 +52,7 @@ interface LessonTableProps {
 }
 
 const headerButtonClass =
-  'flex items-center gap-1.5 transition hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2 rounded';
+  'flex items-center gap-1.5 transition hover:text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-slate-400 focus:ring-offset-2 rounded-sm';
 const headerCellClass =
   'px-2 py-3 text-xs font-semibold tracking-wider text-slate-600';
 
@@ -202,7 +202,7 @@ export function LessonTable({ lessons, schools, onEdit, onDelete }: LessonTableP
   }
 
   return (
-    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xs">
       <div className="flex flex-wrap items-end gap-3 border-b border-slate-200 p-4">
         <DateRangeFields
           idPrefix="lesson-filter"
@@ -260,9 +260,9 @@ export function LessonTable({ lessons, schools, onEdit, onDelete }: LessonTableP
             <col className="w-[14%]" />
             <col className="w-[14%]" />
             <col className="w-[14%]" />
-            <col className="w-[7.25rem]" />
-            <col className="w-[7.5rem]" />
-            <col className="w-[5.5rem]" />
+            <col className="w-29" />
+            <col className="w-30" />
+            <col className="w-22" />
             <col />
             <col className="w-16" />
           </colgroup>
@@ -344,7 +344,7 @@ export function LessonTable({ lessons, schools, onEdit, onDelete }: LessonTableP
                       <button
                         type="button"
                         onClick={() => onEdit(lesson)}
-                        className="rounded p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2"
+                        className="rounded-sm p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-slate-500 focus:ring-offset-2"
                         aria-label={`Edit ${describeLesson(lesson)}`}
                       >
                         <Pencil className="h-4 w-4" aria-hidden />
@@ -352,7 +352,7 @@ export function LessonTable({ lessons, schools, onEdit, onDelete }: LessonTableP
                       <button
                         type="button"
                         onClick={() => onDelete(lesson.id)}
-                        className="rounded p-1.5 text-slate-400 transition hover:bg-red-50 hover:text-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+                        className="rounded-sm p-1.5 text-slate-400 transition hover:bg-red-50 hover:text-red-600 focus:outline-hidden focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
                         aria-label={`Delete ${describeLesson(lesson)}`}
                       >
                         <Trash2 className="h-4 w-4" aria-hidden />
