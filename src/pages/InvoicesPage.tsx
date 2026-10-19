@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Download, FileCheck } from 'lucide-react';
+import { Callout } from '../components/Callout';
 import { DateRangeFields } from '../components/DateRangeFields';
 import { useInvoiceSettings } from '../hooks/useInvoiceSettings';
 import { useIssuedInvoices } from '../hooks/useIssuedInvoices';
@@ -15,7 +16,7 @@ import {
   sumLessonPrices,
 } from '../utils/format';
 import {
-  canDownloadInvoices,
+  canDownloadSchoolInvoice,
   formatInvoiceNumber,
   getLessonsForInvoice,
   lessonsMissingPrice,
@@ -33,6 +34,12 @@ const secondaryButtonClass =
 const primaryButtonClass =
   'inline-flex items-center gap-2 rounded-md bg-slate-800 px-3 py-2 text-sm font-medium text-white transition hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-400 disabled:cursor-not-allowed disabled:opacity-50';
 
+function countLabel(count: number, singular: string, plural: string): string {
+  return `${count} ${count === 1 ? singular : plural}`;
+}
+
+type IssueTarget = { kind: 'all' } | { kind: 'school'; schoolId: string };
+
 // The billed period defaults to the current calendar month. Leftover classes from after
 // the previous invoice (often the prior month) need a manual From date.
 
@@ -40,14 +47,32 @@ function InvoicePreviewTable({
   invoice,
   issued,
   canDownload,
+  nextNumberLabel,
+  canIssue,
+  isConfirmingIssue,
+  isIssuing,
+  onDownloadDraft,
   onDownloadAgain,
+  onIssue,
+  onConfirmIssue,
+  onCancelIssue,
 }: {
   invoice: SchoolInvoice;
   issued: IssuedInvoice | undefined;
   canDownload: boolean;
+  nextNumberLabel: string | null;
+  canIssue: boolean;
+  isConfirmingIssue: boolean;
+  isIssuing: boolean;
+  onDownloadDraft: () => void;
   onDownloadAgain: () => void;
+  onIssue: () => void;
+  onConfirmIssue: () => void;
+  onCancelIssue: () => void;
 }) {
   const total = sumLessonPrices(invoice.lessons);
+  const { title } = invoice.recipient;
+  const hasUnpricedLessons = lessonsMissingPrice(invoice.lessons).length > 0;
 
   return (
     <section className="rounded-md border border-slate-300 bg-white p-4 sm:p-6" aria-label={`Invoice for ${invoice.recipient.billingName}`}>
@@ -56,7 +81,7 @@ function InvoicePreviewTable({
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Invoice preview</p>
           <h3 className="mt-1 text-xl font-semibold text-slate-900">Honorarrechnung</h3>
         </div>
-        {issued && (
+        {issued ? (
           <div className="flex flex-wrap items-center gap-3">
             <p className="text-sm font-medium text-slate-700">
               Issued as {formatInvoiceNumber(issued.number, issued.year)} on {formatDisplayDate(issued.issuedOn)}
@@ -72,8 +97,61 @@ function InvoicePreviewTable({
               Download again
             </button>
           </div>
+        ) : (
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={onDownloadDraft}
+              disabled={!canDownload}
+              className={secondaryButtonClass}
+              aria-label={`Download draft invoice for ${title}`}
+            >
+              <Download className="h-4 w-4 shrink-0" aria-hidden />
+              Download draft
+            </button>
+            <button
+              type="button"
+              onClick={onIssue}
+              disabled={!canIssue || isConfirmingIssue}
+              className={primaryButtonClass}
+              aria-label={
+                nextNumberLabel ? `Issue invoice for ${title} as ${nextNumberLabel}` : `Issue invoice for ${title}`
+              }
+            >
+              <FileCheck className="h-4 w-4 shrink-0" aria-hidden />
+              {nextNumberLabel ? `Issue as ${nextNumberLabel}` : 'Issue'}
+            </button>
+          </div>
         )}
       </div>
+      {!issued && hasUnpricedLessons && (
+        <div className="mt-3">
+          <Callout tone="warning" title="Not ready to issue">
+            Price every lesson for this school before issuing its invoice.
+          </Callout>
+        </div>
+      )}
+      {isConfirmingIssue && (
+        <div
+          className="mt-3 rounded-md border border-slate-300 bg-slate-50 p-4 text-sm text-slate-700"
+          role="group"
+          aria-label={`Confirm issuing invoice for ${title}`}
+        >
+          <p className="font-medium text-slate-900">
+            Issue invoice for {title}
+            {nextNumberLabel ? ` as ${nextNumberLabel}` : ''} dated {formatDisplayDate(getTodayISO())}? This number
+            cannot be reused.
+          </p>
+          <div className="mt-3 flex gap-2">
+            <button type="button" onClick={onConfirmIssue} disabled={!canIssue} className={primaryButtonClass}>
+              {isIssuing ? 'Issuing…' : 'Confirm and download'}
+            </button>
+            <button type="button" onClick={onCancelIssue} disabled={isIssuing} className={secondaryButtonClass}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
       <p className="mt-3 whitespace-pre-line text-sm text-slate-800">
         {invoice.recipient.billingName}
         {invoice.recipient.addressLines.length > 0 ? `\n${invoice.recipient.addressLines.join('\n')}` : ''}
@@ -136,7 +214,8 @@ export function InvoicesPage() {
   const [period, setPeriod] = useState<DateRange>(currentCalendarMonthBounds);
   const { from, to } = period;
   const [exportError, setExportError] = useState<string | null>(null);
-  const [isConfirmingIssue, setIsConfirmingIssue] = useState(false);
+  // Which Issue confirmation is open: the toolbar's Issue all, one school's card, or none.
+  const [confirmingIssue, setConfirmingIssue] = useState<IssueTarget | null>(null);
   const [isIssuing, setIsIssuing] = useState(false);
   const invoiceYear = Number(getTodayISO().slice(0, 4));
   const issuedInvoices = useIssuedInvoices(from, to, invoiceYear);
@@ -146,28 +225,46 @@ export function InvoicesPage() {
   const unpricedLessons = lessonsMissingPrice(periodLessons);
   const { invoices, missingSchool, unknownSchool } = partitionInvoicesBySchool(periodLessons, schools);
   const estimatedTotal = sumLessonPrices(periodLessons);
-  const exportable =
-    invoice.status === 'ready' && schoolStatus === 'ready' && canDownloadInvoices(periodLessons, schools);
+  const unassigned = { missingSchool, unknownSchool };
+  const canDownloadSchool = (schoolInvoice: SchoolInvoice) =>
+    invoice.status === 'ready' && schoolStatus === 'ready' && canDownloadSchoolInvoice(schoolInvoice, unassigned);
+  const exportable = invoices.length > 0 && invoices.every(canDownloadSchool);
   const plannedNumbers =
     issuedInvoices.status === 'ready'
       ? planInvoiceNumbers(invoices, issuedInvoices.invoices, issuedInvoices.nextNumber, invoiceYear)
       : [];
   const canIssue = exportable && !isIssuing && plannedNumbers.length > 0;
   const issuedBySchool = new Map(issuedInvoices.invoices.map((entry) => [entry.schoolId, entry]));
+  const nextNumberLabel =
+    issuedInvoices.status === 'ready' ? formatInvoiceNumber(issuedInvoices.nextNumber, invoiceYear) : null;
+  const canIssueSchool = (schoolInvoice: SchoolInvoice) =>
+    canDownloadSchool(schoolInvoice) &&
+    !isIssuing &&
+    nextNumberLabel !== null &&
+    !issuedBySchool.has(schoolInvoice.recipient.schoolId);
 
   function handlePeriodChange(next: DateRange) {
     setPeriod(next);
-    setIsConfirmingIssue(false);
+    setConfirmingIssue(null);
   }
 
   async function handleConfirmIssue() {
-    if (!canIssue || invoice.status !== 'ready') return;
+    if (!confirmingIssue || invoice.status !== 'ready') return;
+    if (confirmingIssue.kind === 'all' && !canIssue) return;
+    const target = confirmingIssue;
+    const plannedSchoolIds = new Set(plannedNumbers.map((planned) => planned.schoolId));
+    const toIssue = invoices.filter((schoolInvoice) =>
+      target.kind === 'all'
+        ? plannedSchoolIds.has(schoolInvoice.recipient.schoolId)
+        : schoolInvoice.recipient.schoolId === target.schoolId && canIssueSchool(schoolInvoice)
+    );
+    if (toIssue.length === 0) return;
     setExportError(null);
     setIsIssuing(true);
     let issued: IssuedInvoice[];
     try {
       issued = await issuedInvoices.issue(
-        plannedNumbers.map((planned) => planned.schoolId),
+        toIssue.map((schoolInvoice) => schoolInvoice.recipient.schoolId),
         getTodayISO()
       );
     } catch (err) {
@@ -175,13 +272,13 @@ export function InvoicesPage() {
       setIsIssuing(false);
       return;
     }
-    setIsConfirmingIssue(false);
+    setConfirmingIssue(null);
     setIsIssuing(false);
     const issuedSchoolIds = new Set(issued.map((entry) => entry.schoolId));
     try {
       await downloadInvoicePdfs(
         invoice.settings,
-        invoices.filter((schoolInvoice) => issuedSchoolIds.has(schoolInvoice.recipient.schoolId)),
+        toIssue.filter((schoolInvoice) => issuedSchoolIds.has(schoolInvoice.recipient.schoolId)),
         { from, to },
         issued
       );
@@ -194,11 +291,11 @@ export function InvoicesPage() {
     }
   }
 
-  async function handleDownloadAgain(schoolInvoice: SchoolInvoice, issued: IssuedInvoice) {
-    if (!exportable || invoice.status !== 'ready') return;
+  async function handleDownloadSchool(schoolInvoice: SchoolInvoice, issued?: IssuedInvoice) {
+    if (!canDownloadSchool(schoolInvoice) || invoice.status !== 'ready') return;
     setExportError(null);
     try {
-      await downloadInvoicePdfs(invoice.settings, [schoolInvoice], { from, to }, [issued]);
+      await downloadInvoicePdfs(invoice.settings, [schoolInvoice], { from, to }, issued ? [issued] : []);
     } catch (err) {
       setExportError(err instanceof Error ? err.message : 'Failed to create the invoice PDF.');
     }
@@ -213,8 +310,6 @@ export function InvoicesPage() {
       setExportError(err instanceof Error ? err.message : 'Failed to create the invoice PDF.');
     }
   }
-
-  const downloadLabel = invoices.length > 1 ? 'Download PDFs' : 'Download PDF';
 
   return (
     <section aria-label="Export invoices">
@@ -233,27 +328,26 @@ export function InvoicesPage() {
               onClick={handleExport}
               disabled={!exportable}
               className={secondaryButtonClass}
-              aria-label={invoices.length > 1 ? 'Download invoice PDFs' : 'Download invoice PDF'}
             >
               <Download className="h-4 w-4 shrink-0" aria-hidden />
-              {downloadLabel}
+              Download all drafts
             </button>
             <button
               type="button"
-              onClick={() => setIsConfirmingIssue(true)}
-              disabled={!canIssue || isConfirmingIssue}
+              onClick={() => setConfirmingIssue({ kind: 'all' })}
+              disabled={!canIssue || confirmingIssue?.kind === 'all'}
               className={primaryButtonClass}
             >
               <FileCheck className="h-4 w-4 shrink-0" aria-hidden />
-              {plannedNumbers.length > 1 ? 'Issue invoices' : 'Issue invoice'}
+              Issue all invoices
             </button>
           </div>
           <p className="text-xs text-slate-500">
-            Download creates a draft without a Rechnungsnummer. Issue assigns the next numbers and downloads the final
-            PDFs.
+            A draft has no Rechnungsnummer. Issuing assigns the next number and downloads the final PDF — per invoice
+            below, or all invoices at once in school order.
           </p>
 
-          {isConfirmingIssue && plannedNumbers.length > 0 && (
+          {confirmingIssue?.kind === 'all' && (
             <div
               className="rounded-md border border-slate-300 bg-slate-50 p-4 text-sm text-slate-700"
               role="group"
@@ -276,7 +370,7 @@ export function InvoicesPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setIsConfirmingIssue(false)}
+                  onClick={() => setConfirmingIssue(null)}
                   disabled={isIssuing}
                   className={secondaryButtonClass}
                 >
@@ -287,29 +381,29 @@ export function InvoicesPage() {
           )}
 
           {invoice.status === 'missing' && (
-            <p className="text-sm text-red-600" role="alert">
+            <Callout tone="error" title="Invoice details missing">
               Invoice details are not configured in the database, so a PDF cannot be created.
-            </p>
+            </Callout>
           )}
           {invoice.status === 'error' && (
-            <p className="text-sm text-red-600" role="alert">
-              Invoice details could not be loaded. Try again after signing in.
-            </p>
+            <Callout tone="error" title="Invoice details could not be loaded">
+              Try again after signing in.
+            </Callout>
           )}
           {schoolStatus === 'error' && (
-            <p className="text-sm text-red-600" role="alert">
-              Schools could not be loaded, so a PDF cannot be created.
-            </p>
+            <Callout tone="error" title="Schools could not be loaded">
+              A PDF cannot be created until the schools load.
+            </Callout>
           )}
           {issuedInvoices.status === 'error' && (
-            <p className="text-sm text-red-600" role="alert">
+            <Callout tone="error" title="Invoice numbers could not be loaded">
               Issued invoice numbers could not be loaded, so invoices cannot be issued.
-            </p>
+            </Callout>
           )}
           {exportError && (
-            <p className="text-sm text-red-600" role="alert">
+            <Callout tone="error" title="Something went wrong" onDismiss={() => setExportError(null)}>
               {exportError}
-            </p>
+            </Callout>
           )}
         </div>
 
@@ -335,8 +429,11 @@ export function InvoicesPage() {
                 {periodLessons.length === 1 ? '' : 's'} in this period. Estimated total {formatInvoicePrice(estimatedTotal)}.
               </p>
               {unpricedLessons.length > 0 && (
-                <div className="text-sm text-red-600" role="alert">
-                  <p>Every lesson in this period needs a price before you can export.</p>
+                <Callout
+                  tone="error"
+                  title={`${countLabel(unpricedLessons.length, 'lesson needs', 'lessons need')} a price`}
+                >
+                  <p>Every lesson needs a price before its school’s invoice can be exported or issued.</p>
                   <ul className="mt-1 list-disc pl-5">
                     {unpricedLessons.map((lesson) => (
                       <li key={lesson.id}>
@@ -344,10 +441,13 @@ export function InvoicesPage() {
                       </li>
                     ))}
                   </ul>
-                </div>
+                </Callout>
               )}
               {missingSchool.length > 0 && (
-                <div className="text-sm text-red-600" role="alert">
+                <Callout
+                  tone="error"
+                  title={`${countLabel(missingSchool.length, 'lesson needs', 'lessons need')} a school`}
+                >
                   <p>Every lesson in this period needs a school before you can export.</p>
                   <ul className="mt-1 list-disc pl-5">
                     {missingSchool.map((lesson) => (
@@ -356,10 +456,10 @@ export function InvoicesPage() {
                       </li>
                     ))}
                   </ul>
-                </div>
+                </Callout>
               )}
               {unknownSchool.length > 0 && (
-                <div className="text-sm text-red-600" role="alert">
+                <Callout tone="error" title="Unknown school">
                   <p>A lesson’s school could not be loaded, so a PDF cannot be created.</p>
                   <ul className="mt-1 list-disc pl-5">
                     {unknownSchool.map((lesson) => (
@@ -368,17 +468,26 @@ export function InvoicesPage() {
                       </li>
                     ))}
                   </ul>
-                </div>
+                </Callout>
               )}
               {invoices.map((schoolInvoice) => {
-                const issued = issuedBySchool.get(schoolInvoice.recipient.schoolId);
+                const { schoolId } = schoolInvoice.recipient;
+                const issued = issuedBySchool.get(schoolId);
                 return (
                   <InvoicePreviewTable
-                    key={schoolInvoice.recipient.schoolId}
+                    key={schoolId}
                     invoice={schoolInvoice}
                     issued={issued}
-                    canDownload={exportable}
-                    onDownloadAgain={() => issued && handleDownloadAgain(schoolInvoice, issued)}
+                    canDownload={canDownloadSchool(schoolInvoice)}
+                    nextNumberLabel={nextNumberLabel}
+                    canIssue={canIssueSchool(schoolInvoice)}
+                    isConfirmingIssue={confirmingIssue?.kind === 'school' && confirmingIssue.schoolId === schoolId}
+                    isIssuing={isIssuing}
+                    onDownloadDraft={() => handleDownloadSchool(schoolInvoice)}
+                    onDownloadAgain={() => issued && handleDownloadSchool(schoolInvoice, issued)}
+                    onIssue={() => setConfirmingIssue({ kind: 'school', schoolId })}
+                    onConfirmIssue={handleConfirmIssue}
+                    onCancelIssue={() => setConfirmingIssue(null)}
                   />
                 );
               })}

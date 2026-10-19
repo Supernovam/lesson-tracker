@@ -144,7 +144,7 @@ describe('InvoicesPage', () => {
     expect(screen.getByLabelText(/invoice preview summary/i).textContent).toContain('93,33€');
     expect(screen.getByRole('region', { name: /invoice for alpha campus gmbh/i })).toBeDefined();
 
-    fireEvent.click(screen.getByRole('button', { name: /download invoice pdf/i }));
+    fireEvent.click(screen.getByRole('button', { name: /download all drafts/i }));
 
     expect(mockedDownload).toHaveBeenCalledWith(
       FAKE_INVOICE_SETTINGS,
@@ -191,7 +191,7 @@ describe('InvoicesPage', () => {
     expect(screen.getByLabelText(/invoice preview summary/i).textContent).toMatch(/2 invoices for 2 lessons/i);
     expect(screen.getAllByRole('table', { name: /invoice preview/i })).toHaveLength(2);
 
-    fireEvent.click(screen.getByRole('button', { name: /download invoice pdfs/i }));
+    fireEvent.click(screen.getByRole('button', { name: /download all drafts/i }));
 
     expect(mockedDownload).toHaveBeenCalledWith(
       FAKE_INVOICE_SETTINGS,
@@ -210,11 +210,22 @@ describe('InvoicesPage', () => {
 
     render(<InvoicesPage />);
 
-    expect(screen.getByRole('alert').textContent).toMatch(/needs a price/i);
+    expect(screen.getByRole('alert').textContent).toMatch(/1 lesson needs a price/i);
     expect(screen.getByRole('alert').textContent).toMatch(/No price for the lesson for Alex on 03.09.2026/);
     expect(
-      (screen.getByRole('button', { name: /download invoice pdf/i }) as HTMLButtonElement).disabled
+      (screen.getByRole('button', { name: /download all drafts/i }) as HTMLButtonElement).disabled
     ).toBe(true);
+  });
+
+  it('counts unpriced lessons in the error title', () => {
+    mockLessons([
+      createLesson({ id: 'first', date: '2026-09-03', calculatedPrice: null }),
+      createLesson({ id: 'second', date: '2026-09-04', calculatedPrice: null }),
+    ]);
+
+    render(<InvoicesPage />);
+
+    expect(screen.getByRole('alert').textContent).toMatch(/^2 lessons need a price/);
   });
 
   it('names a lesson without a student by its date in the guard message', () => {
@@ -241,7 +252,7 @@ describe('InvoicesPage', () => {
     expect(screen.getByRole('alert').textContent).toMatch(/needs a school/i);
     expect(screen.getByRole('alert').textContent).toMatch(/No school for the lesson for Alex on 03.09.2026/);
     expect(
-      (screen.getByRole('button', { name: /download invoice pdf/i }) as HTMLButtonElement).disabled
+      (screen.getByRole('button', { name: /download all drafts/i }) as HTMLButtonElement).disabled
     ).toBe(true);
   });
 
@@ -253,7 +264,7 @@ describe('InvoicesPage', () => {
 
     expect(screen.getByRole('alert').textContent).toMatch(/not configured/i);
     expect(
-      (screen.getByRole('button', { name: /download invoice pdf/i }) as HTMLButtonElement).disabled
+      (screen.getByRole('button', { name: /download all drafts/i }) as HTMLButtonElement).disabled
     ).toBe(true);
   });
 
@@ -298,7 +309,7 @@ describe('InvoicesPage', () => {
       mockLessons([createLesson({ date: '2026-09-03', calculatedPrice: 56 })]);
 
       render(<InvoicesPage />);
-      fireEvent.click(screen.getByRole('button', { name: /download invoice pdf/i }));
+      fireEvent.click(screen.getByRole('button', { name: /download all drafts/i }));
 
       expect(mockedIssue).not.toHaveBeenCalled();
       expect(mockedDownload).toHaveBeenCalledWith(FAKE_INVOICE_SETTINGS, expect.any(Array), {
@@ -313,7 +324,7 @@ describe('InvoicesPage', () => {
       mockedIssue.mockResolvedValueOnce(issued);
 
       render(<InvoicesPage />);
-      fireEvent.click(screen.getByRole('button', { name: /^issue invoices$/i }));
+      fireEvent.click(screen.getByRole('button', { name: /^issue all invoices$/i }));
 
       const confirm = screen.getByRole('group', { name: /confirm issuing invoices/i });
       expect(confirm.textContent).toContain('Alpha Campus → 12/26');
@@ -342,7 +353,7 @@ describe('InvoicesPage', () => {
       mockTwoSchoolPeriod();
 
       render(<InvoicesPage />);
-      fireEvent.click(screen.getByRole('button', { name: /^issue invoices$/i }));
+      fireEvent.click(screen.getByRole('button', { name: /^issue all invoices$/i }));
       fireEvent.click(screen.getByRole('button', { name: /cancel/i }));
 
       expect(screen.queryByRole('group', { name: /confirm issuing invoices/i })).toBeNull();
@@ -373,7 +384,7 @@ describe('InvoicesPage', () => {
       );
       expect(mockedIssue).not.toHaveBeenCalled();
 
-      fireEvent.click(screen.getByRole('button', { name: /^issue invoice$/i }));
+      fireEvent.click(screen.getByRole('button', { name: /^issue all invoices$/i }));
       const confirm = screen.getByRole('group', { name: /confirm issuing invoices/i });
       expect(confirm.textContent).toContain('Beta Campus → 13/26');
       expect(confirm.textContent).not.toContain('Alpha Campus');
@@ -385,9 +396,11 @@ describe('InvoicesPage', () => {
 
       render(<InvoicesPage />);
 
-      expect((screen.getByRole('button', { name: /^issue invoice/i }) as HTMLButtonElement).disabled).toBe(true);
+      expect((screen.getByRole('button', { name: /^issue all invoices$/i }) as HTMLButtonElement).disabled).toBe(true);
+      expect(screen.queryByRole('button', { name: /^issue invoice for/i })).toBeNull();
+      expect(screen.queryByRole('button', { name: /download draft invoice/i })).toBeNull();
       expect(
-        (screen.getByRole('button', { name: /download invoice pdfs/i }) as HTMLButtonElement).disabled
+        (screen.getByRole('button', { name: /download all drafts/i }) as HTMLButtonElement).disabled
       ).toBe(false);
     });
 
@@ -396,7 +409,10 @@ describe('InvoicesPage', () => {
 
       render(<InvoicesPage />);
 
-      expect((screen.getByRole('button', { name: /^issue invoice$/i }) as HTMLButtonElement).disabled).toBe(true);
+      expect((screen.getByRole('button', { name: /^issue all invoices$/i }) as HTMLButtonElement).disabled).toBe(true);
+      expect(
+        (screen.getByRole('button', { name: /issue invoice for alpha campus/i }) as HTMLButtonElement).disabled
+      ).toBe(true);
     });
 
     it('numbers the first invoice of a new year 01/yy', () => {
@@ -407,12 +423,242 @@ describe('InvoicesPage', () => {
       render(<InvoicesPage />);
       fireEvent.change(screen.getByLabelText(/invoice period start date/i), { target: { value: '2026-12-01' } });
       fireEvent.change(screen.getByLabelText(/invoice period end date/i), { target: { value: '2026-12-31' } });
-      fireEvent.click(screen.getByRole('button', { name: /^issue invoice$/i }));
+      expect(screen.getByRole('button', { name: /issue invoice for alpha campus as 01\/27/i })).toBeDefined();
+      fireEvent.click(screen.getByRole('button', { name: /^issue all invoices$/i }));
 
       expect(mockedUseIssuedInvoices).toHaveBeenLastCalledWith('2026-12-01', '2026-12-31', 2027);
       expect(screen.getByRole('group', { name: /confirm issuing invoices/i }).textContent).toContain(
         'Alpha Campus → 01/27'
       );
+    });
+  });
+  describe('issuing one invoice at a time', () => {
+    it('offers each card the next free number and issues only that school after confirming', async () => {
+      mockTwoSchoolPeriod();
+      const betaIssued = issuedFor(WEST_SCHOOL.id, 12);
+      mockedIssue.mockResolvedValueOnce([betaIssued]);
+
+      render(<InvoicesPage />);
+
+      expect(screen.getByRole('button', { name: /issue invoice for alpha campus as 12\/26/i })).toBeDefined();
+      fireEvent.click(screen.getByRole('button', { name: /issue invoice for beta campus as 12\/26/i }));
+
+      const confirm = screen.getByRole('group', { name: /confirm issuing invoice for beta campus/i });
+      expect(confirm.textContent).toContain('Issue invoice for Beta Campus as 12/26 dated 21.09.2026');
+      expect(screen.queryByRole('group', { name: /confirm issuing invoice for alpha campus/i })).toBeNull();
+      expect(mockedIssue).not.toHaveBeenCalled();
+
+      fireEvent.click(screen.getByRole('button', { name: /confirm and download/i }));
+
+      expect(mockedIssue).toHaveBeenCalledWith([WEST_SCHOOL.id], '2026-09-21');
+      await waitFor(() =>
+        expect(mockedDownload).toHaveBeenCalledWith(
+          FAKE_INVOICE_SETTINGS,
+          [expect.objectContaining({ recipient: expect.objectContaining({ title: 'Beta Campus' }) })],
+          { from: '2026-09-01', to: '2026-09-30' },
+          [betaIssued]
+        )
+      );
+      expect(screen.queryByRole('group', { name: /confirm issuing invoice for beta campus/i })).toBeNull();
+    });
+
+    it('cancel closes the card confirmation without issuing', () => {
+      mockTwoSchoolPeriod();
+
+      render(<InvoicesPage />);
+      fireEvent.click(screen.getByRole('button', { name: /issue invoice for alpha campus/i }));
+      fireEvent.click(screen.getByRole('button', { name: /cancel/i }));
+
+      expect(screen.queryByRole('group', { name: /confirm issuing invoice for alpha campus/i })).toBeNull();
+      expect(mockedIssue).not.toHaveBeenCalled();
+    });
+
+    it('keeps only one confirmation open at a time, switching from either entry point', () => {
+      mockTwoSchoolPeriod();
+
+      render(<InvoicesPage />);
+      fireEvent.click(screen.getByRole('button', { name: /^issue all invoices$/i }));
+      fireEvent.click(screen.getByRole('button', { name: /issue invoice for alpha campus/i }));
+
+      expect(screen.queryByRole('group', { name: /confirm issuing invoices/i })).toBeNull();
+      expect(screen.getByRole('group', { name: /confirm issuing invoice for alpha campus/i })).toBeDefined();
+
+      fireEvent.click(screen.getByRole('button', { name: /^issue all invoices$/i }));
+
+      expect(screen.queryByRole('group', { name: /confirm issuing invoice for alpha campus/i })).toBeNull();
+      expect(screen.getByRole('group', { name: /confirm issuing invoices/i })).toBeDefined();
+    });
+
+    it('keeps Cancel reachable when issued numbers fail to load while a card confirmation is open', () => {
+      mockTwoSchoolPeriod();
+
+      const { rerender } = render(<InvoicesPage />);
+      fireEvent.click(screen.getByRole('button', { name: /issue invoice for alpha campus/i }));
+      mockedUseIssuedInvoices.mockReturnValue({ status: 'error', invoices: [], nextNumber: null, issue: mockedIssue });
+      rerender(<InvoicesPage />);
+
+      const confirm = screen.getByRole('group', { name: /confirm issuing invoice for alpha campus/i });
+      expect(confirm.textContent).toContain('Issue invoice for Alpha Campus dated');
+      expect((screen.getByRole('button', { name: /confirm and download/i }) as HTMLButtonElement).disabled).toBe(true);
+
+      fireEvent.click(screen.getByRole('button', { name: /cancel/i }));
+
+      expect(screen.queryByRole('group', { name: /confirm issuing invoice for alpha campus/i })).toBeNull();
+      expect(mockedIssue).not.toHaveBeenCalled();
+    });
+
+    it('keeps Cancel reachable when the Issue all list empties while it is open', () => {
+      mockTwoSchoolPeriod();
+
+      const { rerender } = render(<InvoicesPage />);
+      fireEvent.click(screen.getByRole('button', { name: /^issue all invoices$/i }));
+      mockIssued([issuedFor(FAKE_SCHOOL.id, 12), issuedFor(WEST_SCHOOL.id, 13)], 14);
+      rerender(<InvoicesPage />);
+
+      expect((screen.getByRole('button', { name: /confirm and download/i }) as HTMLButtonElement).disabled).toBe(true);
+      fireEvent.click(screen.getByRole('button', { name: /cancel/i }));
+
+      expect(screen.queryByRole('group', { name: /confirm issuing invoices/i })).toBeNull();
+      expect((screen.getByRole('button', { name: /^issue all invoices$/i }) as HTMLButtonElement).disabled).toBe(true);
+    });
+
+    it('shows the issued state on the card and moves the next number up for the others', () => {
+      mockTwoSchoolPeriod();
+      mockIssued([issuedFor(FAKE_SCHOOL.id, 12)], 13);
+
+      render(<InvoicesPage />);
+
+      const alpha = screen.getByRole('region', { name: /invoice for alpha campus gmbh/i });
+      expect(alpha.textContent).toContain('Issued as 12/26');
+      expect(screen.queryByRole('button', { name: /issue invoice for alpha campus/i })).toBeNull();
+      expect(screen.queryByRole('button', { name: /download draft invoice for alpha campus/i })).toBeNull();
+      expect(screen.getByRole('button', { name: /issue invoice for beta campus as 13\/26/i })).toBeDefined();
+    });
+
+    it('lets Beta be issued while Alpha has an unpriced lesson, and blocks Issue all', async () => {
+      mockTwoSchoolPeriod();
+      mockLessons([
+        createLesson({ id: 'alpha', date: '2026-09-03', calculatedPrice: null }),
+        createLesson({ id: 'beta', date: '2026-09-04', schoolId: WEST_SCHOOL.id, schoolTitle: WEST_SCHOOL.title }),
+      ]);
+      mockedIssue.mockResolvedValueOnce([issuedFor(WEST_SCHOOL.id, 12)]);
+
+      render(<InvoicesPage />);
+
+      expect((screen.getByRole('button', { name: /^issue all invoices$/i }) as HTMLButtonElement).disabled).toBe(true);
+      expect(
+        (screen.getByRole('button', { name: /download all drafts/i }) as HTMLButtonElement).disabled
+      ).toBe(true);
+      const alphaIssue = screen.getByRole('button', { name: /issue invoice for alpha campus/i }) as HTMLButtonElement;
+      const alphaDraft = screen.getByRole('button', {
+        name: /download draft invoice for alpha campus/i,
+      }) as HTMLButtonElement;
+      expect(alphaIssue.disabled).toBe(true);
+      expect(alphaDraft.disabled).toBe(true);
+      expect(screen.getByRole('region', { name: /invoice for alpha campus gmbh/i }).textContent).toMatch(
+        /not ready to issue.*price every lesson for this school/i
+      );
+      expect(screen.getByRole('region', { name: /invoice for beta campus gmbh/i }).textContent).not.toMatch(
+        /price every lesson/i
+      );
+      expect(screen.getByRole('alert').textContent).toMatch(
+        /every lesson needs a price before its school’s invoice can be exported or issued/i
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: /issue invoice for beta campus as 12\/26/i }));
+      fireEvent.click(screen.getByRole('button', { name: /confirm and download/i }));
+
+      expect(mockedIssue).toHaveBeenCalledWith([WEST_SCHOOL.id], '2026-09-21');
+      await waitFor(() => expect(mockedDownload).toHaveBeenCalledTimes(1));
+    });
+
+    it.each([
+      ['no school', { schoolId: null, schoolTitle: null }],
+      ['an unknown school', { schoolId: 'school-missing', schoolTitle: 'Gone' }],
+    ])('blocks every card while a lesson has %s', (_label, schoolFields) => {
+      mockLessons([
+        createLesson({ id: 'alpha', date: '2026-09-03' }),
+        createLesson({ id: 'stray', date: '2026-09-05', ...schoolFields }),
+      ]);
+
+      render(<InvoicesPage />);
+
+      expect(
+        (screen.getByRole('button', { name: /issue invoice for alpha campus/i }) as HTMLButtonElement).disabled
+      ).toBe(true);
+      expect(
+        (screen.getByRole('button', { name: /download draft invoice for alpha campus/i }) as HTMLButtonElement)
+          .disabled
+      ).toBe(true);
+      expect((screen.getByRole('button', { name: /^issue all invoices$/i }) as HTMLButtonElement).disabled).toBe(true);
+    });
+
+    it('blocks card issuing while issued numbers cannot be loaded', () => {
+      mockLessons([createLesson({ date: '2026-09-03' })]);
+      mockedUseIssuedInvoices.mockReturnValue({ status: 'error', invoices: [], nextNumber: null, issue: mockedIssue });
+
+      render(<InvoicesPage />);
+
+      const issue = screen.getByRole('button', { name: /^issue invoice for alpha campus$/i }) as HTMLButtonElement;
+      expect(issue.disabled).toBe(true);
+      expect(issue.textContent).toBe('Issue');
+      expect(
+        (screen.getByRole('button', { name: /download draft invoice for alpha campus/i }) as HTMLButtonElement)
+          .disabled
+      ).toBe(false);
+    });
+
+    it('downloads a single draft from its card without issuing', () => {
+      mockTwoSchoolPeriod();
+
+      render(<InvoicesPage />);
+      fireEvent.click(screen.getByRole('button', { name: /download draft invoice for beta campus/i }));
+
+      expect(mockedIssue).not.toHaveBeenCalled();
+      expect(mockedDownload).toHaveBeenCalledWith(
+        FAKE_INVOICE_SETTINGS,
+        [expect.objectContaining({ recipient: expect.objectContaining({ title: 'Beta Campus' }) })],
+        { from: '2026-09-01', to: '2026-09-30' },
+        []
+      );
+    });
+
+    it('keeps the confirmation open and shows the error when issuing fails', async () => {
+      mockTwoSchoolPeriod();
+      mockedIssue.mockRejectedValueOnce(new Error('Server unavailable'));
+
+      render(<InvoicesPage />);
+      fireEvent.click(screen.getByRole('button', { name: /issue invoice for alpha campus/i }));
+      fireEvent.click(screen.getByRole('button', { name: /confirm and download/i }));
+
+      const alert = await screen.findByRole('alert');
+      expect(alert.textContent).toContain('Server unavailable');
+      fireEvent.click(screen.getByRole('button', { name: /dismiss message/i }));
+      expect(screen.queryByRole('alert')).toBeNull();
+      expect(screen.getByRole('group', { name: /confirm issuing invoice for alpha campus/i })).toBeDefined();
+      expect(mockedDownload).not.toHaveBeenCalled();
+    });
+
+    it('asks to use Download again when the PDF fails after issuing', async () => {
+      mockTwoSchoolPeriod();
+      mockedIssue.mockResolvedValueOnce([issuedFor(FAKE_SCHOOL.id, 12)]);
+      mockedDownload.mockRejectedValueOnce(new Error('PDF failed'));
+
+      render(<InvoicesPage />);
+      fireEvent.click(screen.getByRole('button', { name: /issue invoice for alpha campus/i }));
+      fireEvent.click(screen.getByRole('button', { name: /confirm and download/i }));
+
+      expect((await screen.findByRole('alert')).textContent).toMatch(/numbers were issued.*download again.*pdf failed/i);
+    });
+
+    it('closes an open card confirmation when the period changes', () => {
+      mockTwoSchoolPeriod();
+
+      render(<InvoicesPage />);
+      fireEvent.click(screen.getByRole('button', { name: /issue invoice for alpha campus/i }));
+      fireEvent.change(screen.getByLabelText(/invoice period start date/i), { target: { value: '2026-09-02' } });
+
+      expect(screen.queryByRole('group', { name: /confirm issuing invoice for alpha campus/i })).toBeNull();
     });
   });
 });

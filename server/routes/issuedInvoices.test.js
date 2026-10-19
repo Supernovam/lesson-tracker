@@ -159,6 +159,59 @@ describe('POST /api/issued-invoices', () => {
     expect(table).toHaveLength(2);
   });
 
+  it('issues one school on its own with the next number after a school already issued for the period', async () => {
+    const { pool, table } = createIssuedInvoicesPool([
+      { schoolId: 'school-alpha', ...period, year: 2026, number: 12, issuedOn: '2026-10-01' },
+    ]);
+
+    const res = await request(appFor(pool))
+      .post('/api/issued-invoices')
+      .send({ ...period, issuedOn: '2026-10-17', schoolIds: ['school-beta'] });
+
+    expect(res.status).toBe(201);
+    expect(res.body).toEqual([
+      { schoolId: 'school-beta', ...period, year: 2026, number: 13, issuedOn: '2026-10-17' },
+    ]);
+    expect(table).toHaveLength(2);
+  });
+
+  it('gives consecutive numbers to schools issued one after the other', async () => {
+    const { pool } = createIssuedInvoicesPool();
+    const app = appFor(pool);
+
+    const beta = await request(app)
+      .post('/api/issued-invoices')
+      .send({ ...period, issuedOn: '2026-10-17', schoolIds: ['school-beta'] });
+    const alpha = await request(app)
+      .post('/api/issued-invoices')
+      .send({ ...period, issuedOn: '2026-10-18', schoolIds: ['school-alpha'] });
+    const listed = await request(app).get('/api/issued-invoices').query({ ...period, year: 2026 });
+
+    expect(beta.body.map((row) => [row.schoolId, row.number])).toEqual([['school-beta', 12]]);
+    expect(alpha.body.map((row) => [row.schoolId, row.number])).toEqual([['school-alpha', 13]]);
+    expect(listed.body.invoices.map((row) => [row.schoolId, row.number])).toEqual([
+      ['school-beta', 12],
+      ['school-alpha', 13],
+    ]);
+    expect(listed.body.nextNumber).toBe(14);
+  });
+
+  it('returns the existing number without consuming a new one when the same school is issued twice', async () => {
+    const { pool, table } = createIssuedInvoicesPool();
+    const app = appFor(pool);
+    const body = { ...period, issuedOn: '2026-10-17', schoolIds: ['school-alpha'] };
+
+    const first = await request(app).post('/api/issued-invoices').send(body);
+    const second = await request(app)
+      .post('/api/issued-invoices')
+      .send({ ...body, issuedOn: '2026-10-18' });
+
+    expect(second.status).toBe(201);
+    expect(second.body).toEqual(first.body);
+    expect(second.body[0].issuedOn).toBe('2026-10-17');
+    expect(table).toHaveLength(1);
+  });
+
   it('rolls back and reports an unknown school without consuming a number', async () => {
     const { pool, table } = createIssuedInvoicesPool();
 
