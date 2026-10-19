@@ -1,16 +1,13 @@
 import { describe, expect, it, vi } from 'vitest';
-import * as XLSX from 'xlsx';
+import writeXlsxFile from 'write-excel-file/browser';
 import type { Lesson } from '../types/lesson';
 import { LessonExcelExporter } from './exportUtils';
 import type { LessonFilter } from './lessonTableData';
 
-vi.mock('xlsx', () => ({
-  utils: {
-    aoa_to_sheet: vi.fn(() => ({})),
-    book_new: vi.fn(() => ({})),
-    book_append_sheet: vi.fn(),
-  },
-  writeFile: vi.fn(),
+const toFile = vi.fn(async (_fileName: string) => {});
+
+vi.mock('write-excel-file/browser', () => ({
+  default: vi.fn(() => ({ toFile, toBlob: vi.fn() })),
 }));
 
 function column(name: (typeof LessonExcelExporter.COLUMN_HEADERS)[number]) {
@@ -199,20 +196,29 @@ describe('LessonExcelExporter', () => {
       );
     });
 
-    it('passes the range-based filename to xlsx writeFile when downloading', () => {
-      vi.mocked(XLSX.writeFile).mockClear();
-      LessonExcelExporter.downloadLessons([baseLesson()], january, null);
-      expect(XLSX.writeFile).toHaveBeenCalledTimes(1);
-      expect(XLSX.writeFile).toHaveBeenCalledWith(
-        expect.anything(),
-        'lessons-export-2025-01-01-to-2025-01-31.xlsx'
+    it('writes the workbook rows to a Lessons sheet under the range-based filename', async () => {
+      vi.mocked(writeXlsxFile).mockClear();
+      toFile.mockClear();
+
+      await LessonExcelExporter.downloadLessons([baseLesson()], january, null);
+
+      expect(writeXlsxFile).toHaveBeenCalledTimes(1);
+      expect(writeXlsxFile).toHaveBeenCalledWith(
+        LessonExcelExporter.buildWorkbookRows([baseLesson()], january, null),
+        { sheet: 'Lessons' }
       );
+      expect(toFile).toHaveBeenCalledWith('lessons-export-2025-01-01-to-2025-01-31.xlsx');
     });
 
-    it('uses an explicit filename when provided instead of the default', () => {
-      vi.mocked(XLSX.writeFile).mockClear();
-      LessonExcelExporter.downloadLessons([baseLesson()], january, null, 'custom-name.xlsx');
-      expect(XLSX.writeFile).toHaveBeenCalledWith(expect.anything(), 'custom-name.xlsx');
+    it('uses an explicit filename when provided instead of the default', async () => {
+      toFile.mockClear();
+      await LessonExcelExporter.downloadLessons([baseLesson()], january, null, 'custom-name.xlsx');
+      expect(toFile).toHaveBeenCalledWith('custom-name.xlsx');
+    });
+
+    it('rejects when the file cannot be written', async () => {
+      toFile.mockRejectedValueOnce(new Error('write failed'));
+      await expect(LessonExcelExporter.downloadLessons([baseLesson()], january, null)).rejects.toThrow('write failed');
     });
   });
 });

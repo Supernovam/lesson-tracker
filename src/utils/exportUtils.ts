@@ -1,4 +1,4 @@
-import * as XLSX from 'xlsx';
+import writeXlsxFile from 'write-excel-file/browser';
 import type { Lesson } from '../types/lesson';
 import { formatDisplayDate, formatDuration, formatPrice, safeFilenamePart, sumLessonPrices } from './format';
 import { ALL_DATES, getLessonsForDisplay, type LessonFilter, type SortState } from './lessonTableData';
@@ -96,11 +96,8 @@ export class LessonExcelExporter {
     filter: LessonFilter,
     sort: SortState,
     filename?: string
-  ): void {
-    const aoa = this.buildWorkbookRows(lessons, filter, sort);
-    const worksheet = XLSX.utils.aoa_to_sheet(aoa);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Lessons');
-    XLSX.writeFile(workbook, filename ?? this.filenameForExport(filter));
+  ): Promise<void> {
+    const rows = this.buildWorkbookRows(lessons, filter, sort);
+    return writeXlsxFile(rows, { sheet: 'Lessons' }).toFile(filename ?? this.filenameForExport(filter));
   }
 }
