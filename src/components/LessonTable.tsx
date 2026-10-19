@@ -186,7 +186,7 @@ export function LessonTable({ lessons, schools, onEdit, onDelete }: LessonTableP
       filter,
       activeSort,
       LessonExcelExporter.filenameForExport(filter, selectedSchoolTitle)
-    );
+    ).catch((err) => console.error('Failed to export lessons:', err));
   }, [lessons, filter, activeSort, selectedSchoolTitle]);
 
   if (lessons.length === 0) {

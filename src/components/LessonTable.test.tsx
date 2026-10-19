@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { LessonTable } from './LessonTable';
+import { LessonExcelExporter } from '../utils/exportUtils';
 import type { Lesson } from '../types/lesson';
 import type { School } from '../types/school';
 
@@ -621,5 +622,45 @@ describe('LessonTable', () => {
     setRange('2025-11-01', '2025-11-30');
 
     expect(screen.getByText(/no lessons found for the selected filters/i)).toBeDefined();
+  });
+
+  describe('Excel export', () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it('exports the filtered lessons under a filename naming the selected school', () => {
+      const download = vi.spyOn(LessonExcelExporter, 'downloadLessons').mockResolvedValue();
+      const lessons = [
+        createLesson({ studentName: 'Sample A', schoolId: 'school-alpha', schoolTitle: 'Alpha', date: '2025-01-10' }),
+        createLesson({ studentName: 'Sample B', schoolId: 'school-beta', schoolTitle: 'Beta', date: '2025-01-11' }),
+      ];
+      render(<LessonTable schools={SCHOOLS} lessons={lessons} onDelete={vi.fn()} onEdit={vi.fn()} />);
+      selectSchool('school-alpha');
+
+      fireEvent.click(screen.getByRole('button', { name: /export filtered lessons to excel/i }));
+
+      expect(download).toHaveBeenCalledTimes(1);
+      expect(download.mock.calls[0][0]).toBe(lessons);
+      expect(download.mock.calls[0][3]).toBe('lessons-export-Alpha-2025-01-01-to-2025-01-31.xlsx');
+    });
+
+    it('logs a failed export instead of leaving the rejection unhandled', async () => {
+      const failure = new Error('write failed');
+      vi.spyOn(LessonExcelExporter, 'downloadLessons').mockRejectedValue(failure);
+      const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+      render(
+        <LessonTable
+          schools={SCHOOLS}
+          lessons={[createLesson({ studentName: 'Sample A', date: '2025-01-10' })]}
+          onDelete={vi.fn()}
+          onEdit={vi.fn()}
+        />
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: /export filtered lessons to excel/i }));
+
+      await waitFor(() => expect(consoleError).toHaveBeenCalledWith('Failed to export lessons:', failure));
+    });
   });
 });
