@@ -14,6 +14,7 @@ import {
   parseEmailList,
   toSessionUser,
 } from './auth.js';
+import { poolConnectionConfig } from './database.js';
 import {
   assertFrontendCorsAllowList,
   assertHttpsUrl,
@@ -168,17 +169,14 @@ app.use(
   })
 );
 
-const databaseUrlWantsSsl = /sslmode=require/i.test(DATABASE_URL);
-const shouldUseSsl = isProduction || databaseUrlWantsSsl;
 const pgMax = process.env.PG_POOL_MAX ? Number(process.env.PG_POOL_MAX) : undefined;
 const pgConnectionTimeoutMillis = process.env.PG_CONNECTION_TIMEOUT_MS
   ? Number(process.env.PG_CONNECTION_TIMEOUT_MS)
   : undefined;
 
 const pool = new Pool({
-  connectionString: DATABASE_URL,
-  // Neon requires SSL in production.
-  ssl: shouldUseSsl ? { rejectUnauthorized: false } : undefined,
+  // Neon requires SSL; certificates are always verified.
+  ...poolConnectionConfig(DATABASE_URL, { isProduction }),
   max: pgMax,
   connectionTimeoutMillis: pgConnectionTimeoutMillis,
 });
