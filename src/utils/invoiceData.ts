@@ -78,10 +78,19 @@ export function partitionInvoicesBySchool(lessons: Lesson[], schools: School[]):
   return { invoices, missingSchool, unknownSchool };
 }
 
-export function canDownloadInvoices(lessons: Lesson[], schools: School[]): boolean {
-  if (!canExportInvoice(lessons)) return false;
-  const { missingSchool, unknownSchool } = partitionInvoicesBySchool(lessons, schools);
-  return missingSchool.length === 0 && unknownSchool.length === 0;
+/**
+ * Whether one school's invoice can be downloaded or issued on its own: its lessons are all
+ * priced, and no lesson in the period lacks a known school (that lesson could belong to it).
+ */
+export function canDownloadSchoolInvoice(
+  invoice: SchoolInvoice,
+  unassigned: { missingSchool: Lesson[]; unknownSchool: Lesson[] }
+): boolean {
+  return (
+    canExportInvoice(invoice.lessons) &&
+    unassigned.missingSchool.length === 0 &&
+    unassigned.unknownSchool.length === 0
+  );
 }
 
 export function invoiceFilename(schoolTitle: string, from: string, to: string): string {

@@ -7,7 +7,7 @@ import {
   invoiceFilename,
   lessonsMissingPrice,
   mapLessonToInvoiceRow,
-  canDownloadInvoices,
+  canDownloadSchoolInvoice,
   partitionInvoicesBySchool,
   recipientAddressLines,
 } from './invoiceData';
@@ -138,7 +138,29 @@ describe('school invoices', () => {
     expect(invoices.map((invoice) => invoice.lessons[0].id)).toEqual(['alpha']);
     expect(missingSchool.map((lesson) => lesson.id)).toEqual(['none']);
     expect(unknownSchool.map((lesson) => lesson.id)).toEqual(['gone']);
-    expect(canDownloadInvoices(lessons, [FAKE_SCHOOL])).toBe(false);
+  });
+
+  it('allows one school invoice while another school has an unpriced lesson', () => {
+    const partition = partitionInvoicesBySchool(
+      [
+        createLesson({ id: 'alpha', schoolId: FAKE_SCHOOL.id, calculatedPrice: null }),
+        createLesson({ id: 'beta', schoolId: beta.id, schoolTitle: beta.title }),
+      ],
+      [FAKE_SCHOOL, beta]
+    );
+    const [alphaInvoice, betaInvoice] = partition.invoices;
+
+    expect(canDownloadSchoolInvoice(alphaInvoice, partition)).toBe(false);
+    expect(canDownloadSchoolInvoice(betaInvoice, partition)).toBe(true);
+  });
+
+  it.each([
+    ['no school', createLesson({ id: 'stray', schoolId: null, schoolTitle: null })],
+    ['an unknown school', createLesson({ id: 'stray', schoolId: 'school-missing', schoolTitle: 'Gone' })],
+  ])('blocks every school invoice while a lesson has %s', (_label, stray) => {
+    const partition = partitionInvoicesBySchool([createLesson({ id: 'alpha' }), stray], [FAKE_SCHOOL]);
+
+    expect(canDownloadSchoolInvoice(partition.invoices[0], partition)).toBe(false);
   });
 });
 
