@@ -115,7 +115,7 @@ export function LessonTypeForm({ editing, onSubmit, onCancelEdit }: LessonTypeFo
   return (
     <form
       onSubmit={handleSubmit}
-      className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
+      className="rounded-xl border border-slate-200 bg-white p-6 shadow-xs"
       aria-labelledby="lesson-type-form-title"
       noValidate
     >
@@ -134,7 +134,7 @@ export function LessonTypeForm({ editing, onSubmit, onCancelEdit }: LessonTypeFo
             type="text"
             value={formData.name}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateField('name', e.target.value)}
-            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-800 placeholder-slate-400 focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-800 placeholder-slate-400 focus:border-slate-500 focus:outline-hidden focus:ring-1 focus:ring-slate-500"
             placeholder="e.g. Private Course"
             aria-invalid={Boolean(errors.name)}
             aria-describedby={errors.name ? 'lesson-type-name-error' : undefined}
@@ -157,7 +157,7 @@ export function LessonTypeForm({ editing, onSubmit, onCancelEdit }: LessonTypeFo
             step={0.01}
             value={priceInput}
             onChange={handlePriceChange}
-            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-800 focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-800 focus:border-slate-500 focus:outline-hidden focus:ring-1 focus:ring-slate-500"
             aria-invalid={Boolean(errors.basePrice)}
             aria-describedby={errors.basePrice ? 'lesson-type-price-error' : undefined}
           />
@@ -181,7 +181,7 @@ export function LessonTypeForm({ editing, onSubmit, onCancelEdit }: LessonTypeFo
             value={durationInput}
             onChange={handleDurationChange}
             onBlur={handleDurationBlur}
-            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-800 focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-800 focus:border-slate-500 focus:outline-hidden focus:ring-1 focus:ring-slate-500"
             aria-invalid={Boolean(errors.baseDurationMinutes)}
             aria-describedby={errors.baseDurationMinutes ? 'lesson-type-duration-error' : undefined}
           />
@@ -201,7 +201,7 @@ export function LessonTypeForm({ editing, onSubmit, onCancelEdit }: LessonTypeFo
         )}
         <button
           type="submit"
-          className="w-full rounded-lg bg-slate-800 px-4 py-2.5 font-medium text-white transition hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 sm:w-auto sm:min-w-[140px]"
+          className="w-full rounded-lg bg-slate-800 px-4 py-2.5 font-medium text-white transition hover:bg-slate-700 focus:outline-hidden focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 sm:w-auto sm:min-w-[140px]"
           disabled={isSubmitting}
         >
           {isSubmitting ? 'Saving...' : isEditing ? 'Update lesson type' : 'Save lesson type'}

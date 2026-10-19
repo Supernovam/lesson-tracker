@@ -30,9 +30,9 @@ import { downloadInvoicePdfs } from '../utils/invoicePdf';
 const invoiceCellClass = 'border border-slate-300 px-3 py-2';
 const invoiceHeaderClass = `${invoiceCellClass} bg-slate-50 text-left text-xs font-semibold tracking-wide text-slate-700`;
 const secondaryButtonClass =
-  'inline-flex items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400 disabled:cursor-not-allowed disabled:opacity-50';
+  'inline-flex items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 focus:outline-hidden focus:ring-2 focus:ring-slate-400 disabled:cursor-not-allowed disabled:opacity-50';
 const primaryButtonClass =
-  'inline-flex items-center gap-2 rounded-md bg-slate-800 px-3 py-2 text-sm font-medium text-white transition hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-400 disabled:cursor-not-allowed disabled:opacity-50';
+  'inline-flex items-center gap-2 rounded-md bg-slate-800 px-3 py-2 text-sm font-medium text-white transition hover:bg-slate-700 focus:outline-hidden focus:ring-2 focus:ring-slate-400 disabled:cursor-not-allowed disabled:opacity-50';
 
 function countLabel(count: number, singular: string, plural: string): string {
   return `${count} ${count === 1 ? singular : plural}`;
@@ -314,7 +314,7 @@ export function InvoicesPage() {
   return (
     <section aria-label="Export invoices">
       <h2 className="mb-4 text-lg font-semibold text-slate-800">Invoices</h2>
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xs">
         <div className="flex flex-col gap-4 border-b border-slate-200 p-4">
           <div className="flex flex-wrap items-end gap-3">
             <DateRangeFields

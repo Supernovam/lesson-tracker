@@ -25,7 +25,7 @@ export function LessonTypeTable({ lessonTypes, onEdit, onDelete }: LessonTypeTab
   }
 
   return (
-    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xs">
       <div className="overflow-x-auto">
         <table
           className="w-full min-w-[520px] border-collapse text-left"
@@ -67,7 +67,7 @@ export function LessonTypeTable({ lessonTypes, onEdit, onDelete }: LessonTypeTab
                     <button
                       type="button"
                       onClick={() => onEdit(lessonType)}
-                      className="rounded p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2"
+                      className="rounded-sm p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-slate-500 focus:ring-offset-2"
                       aria-label={`Edit ${lessonType.name}`}
                     >
                       <Pencil className="h-4 w-4" aria-hidden />
@@ -75,7 +75,7 @@ export function LessonTypeTable({ lessonTypes, onEdit, onDelete }: LessonTypeTab
                     <button
                       type="button"
                       onClick={() => onDelete(lessonType.id)}
-                      className="rounded p-1.5 text-slate-400 transition hover:bg-red-50 hover:text-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+                      className="rounded-sm p-1.5 text-slate-400 transition hover:bg-red-50 hover:text-red-600 focus:outline-hidden focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
                       aria-label={`Delete ${lessonType.name}`}
                     >
                       <Trash2 className="h-4 w-4" aria-hidden />
