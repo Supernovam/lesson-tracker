@@ -1,4 +1,6 @@
 import type { Lesson } from '../types/lesson';
+import type { LessonType } from '../types/lessonType';
+import { baseQuantity, type DurationUnit } from './durationUnit';
 
 /** European date display: DD.MM.YYYY. Single formatter keeps output consistent. */
 const dateFormatter = new Intl.DateTimeFormat('de-DE', {
@@ -29,11 +31,31 @@ export function getTodayISO(): string {
   return `${year}-${month}-${day}`;
 }
 
+/** German decimals without trailing zeros: 3.2 → "3,2", 1.75 → "1,75", 2 → "2". */
+const unitCountFormatter = new Intl.NumberFormat('de-DE', {
+  maximumFractionDigits: 2,
+  useGrouping: false,
+});
+
 /**
- * Formats duration in minutes for display (e.g. "120 min").
+ * Formats a duration in its unit for display (e.g. "120 min" or "3,2 UE").
  */
-export function formatDuration(minutes: number): string {
-  return `${minutes} min`;
+export function formatDuration(duration: number, unit: DurationUnit = 'minutes'): string {
+  if (unit === 'teaching_units') return `${formatUnitCountInput(duration)} UE`;
+  return `${duration} min`;
+}
+
+/** Shows a teaching-unit count the way it is typed into the duration field ("3,2"). */
+export function formatUnitCountInput(units: number): string {
+  return unitCountFormatter.format(units);
+}
+
+/** What a lesson type's base price buys: "45 min", or "1 UE" for a teaching-unit type. */
+export function formatBaseDuration({
+  baseDurationMinutes,
+  durationUnit,
+}: Pick<LessonType, 'baseDurationMinutes' | 'durationUnit'>): string {
+  return formatDuration(baseQuantity(durationUnit, baseDurationMinutes), durationUnit);
 }
 
 const priceFormatter = new Intl.NumberFormat('de-DE', {

@@ -8,6 +8,8 @@ const createLessonType = (overrides: Partial<LessonType>): LessonType => ({
   name: 'Private Course',
   basePrice: 28,
   baseDurationMinutes: 45,
+  durationUnit: 'minutes',
+  lessonCount: 0,
   createdAt: 0,
   updatedAt: 0,
   ...overrides,
@@ -32,6 +34,19 @@ describe('LessonTypeTable', () => {
     expect(screen.getByText('Present Course')).toBeDefined();
     expect(screen.getByText('150 min')).toBeDefined();
     expect(screen.getByText(/^50,00\s€$/)).toBeDefined();
+  });
+
+  it('shows one UE as the base duration of a teaching-unit type', () => {
+    render(
+      <LessonTypeTable
+        lessonTypes={[createLessonType({ name: 'Group Course', durationUnit: 'teaching_units' })]}
+        onEdit={vi.fn()}
+        onDelete={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText('1 UE')).toBeDefined();
+    expect(screen.queryByText('45 min')).toBeNull();
   });
 
   it('calls onEdit and onDelete for a row', () => {

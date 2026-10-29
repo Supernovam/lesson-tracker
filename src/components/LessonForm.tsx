@@ -4,9 +4,22 @@ import { BookOpen } from 'lucide-react';
 import type { Lesson, LessonFormData } from '../types/lesson';
 import type { LessonType } from '../types/lessonType';
 import type { School } from '../types/school';
-import { parseDuration, validateLessonForm } from '../utils/validation';
-import { formatDuration, formatPrice, getTodayISO } from '../utils/format';
-import { calculateSessionPrice } from '../utils/pricing';
+import { parseDecimalInput, parseDuration, validateLessonForm } from '../utils/validation';
+import {
+  formatBaseDuration,
+  formatDuration,
+  formatPrice,
+  formatUnitCountInput,
+  getTodayISO,
+} from '../utils/format';
+import { calculateLessonPrice } from '../utils/pricing';
+import {
+  DURATION_LIMITS,
+  baseQuantity,
+  normalizeDuration,
+  toMinutes,
+  type DurationUnit,
+} from '../utils/durationUnit';
 
 interface LessonFormProps {
   lessonTypes: LessonType[];
@@ -25,6 +38,17 @@ const initialFormState: LessonFormData = {
   lessonTypeId: '',
   schoolId: '',
 };
+
+/** A new lesson starts at what the type's base price buys: one UE, or its base minutes. */
+function defaultDuration(type: LessonType | null | undefined): number {
+  return type ? baseQuantity(type.durationUnit, type.baseDurationMinutes) : 0;
+}
+
+/** Duration as shown in the input: "3,2" for teaching units, "60" for minutes, blank when unset. */
+function durationInputFor(duration: number, unit: DurationUnit): string {
+  if (duration <= 0) return '';
+  return unit === 'teaching_units' ? formatUnitCountInput(duration) : String(duration);
+}
 
 export function LessonForm({
   lessonTypes,
@@ -49,7 +73,7 @@ export function LessonForm({
         lessonTypeId: editing.lessonTypeId ?? '',
         schoolId: editing.schoolId ?? '',
       });
-      setDurationInput(String(editing.duration));
+      setDurationInput(durationInputFor(editing.duration, editing.durationUnit));
     } else {
       setFormData({ ...initialFormState, date: getTodayISO() });
       setDurationInput('');
@@ -63,10 +87,14 @@ export function LessonForm({
     if (errors[field]) setErrors((prev) => ({ ...prev, [field]: undefined }));
   }, [errors]);
 
+  const selectedType = lessonTypes.find((type) => type.id === formData.lessonTypeId) ?? null;
+  // While the types are still loading, an edited lesson keeps its own unit so "3,2" is not read as minutes.
+  const durationUnit: DurationUnit = selectedType?.durationUnit ?? editing?.durationUnit ?? 'minutes';
+
   const handleSubmit = useCallback(
     async (e: React.FormEvent) => {
       e.preventDefault();
-      const result = validateLessonForm(formData);
+      const result = validateLessonForm(formData, durationUnit);
       setErrors(result.errors);
       if (!result.valid) return;
       setSubmitError(null);
@@ -74,15 +102,15 @@ export function LessonForm({
       try {
         await onSubmit(formData);
         if (!editing) {
-          const retainedType = lessonTypes.find((type) => type.id === formData.lessonTypeId);
+          const retainedDuration = defaultDuration(selectedType);
           setFormData({
             ...initialFormState,
             date: getTodayISO(),
-            duration: retainedType?.baseDurationMinutes ?? 0,
+            duration: retainedDuration,
             lessonTypeId: formData.lessonTypeId,
             schoolId: formData.schoolId,
           });
-          setDurationInput(retainedType ? String(retainedType.baseDurationMinutes) : '');
+          setDurationInput(durationInputFor(retainedDuration, durationUnit));
         }
       } catch (err) {
         if (err instanceof Error) setSubmitError(err.message);
@@ -91,62 +119,52 @@ export function LessonForm({
         setIsSubmitting(false);
       }
     },
-    [editing, formData, lessonTypes, onSubmit]
+    [durationUnit, editing, formData, onSubmit, selectedType]
   );
 
-  const selectedType = lessonTypes.find((type) => type.id === formData.lessonTypeId) ?? null;
+  const isTeachingUnits = durationUnit === 'teaching_units';
 
   const handleDurationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const raw = e.target.value;
     setDurationInput(raw);
-    if (raw === '') {
-      updateField('duration', 0);
-      return;
-    }
-    const num = parseInt(raw, 10);
-    if (Number.isNaN(num)) {
-      updateField('duration', 0);
-      return;
-    }
-    updateField('duration', num);
+    const num = isTeachingUnits ? parseDecimalInput(raw) : parseInt(raw, 10);
+    updateField('duration', Number.isNaN(num) ? 0 : num);
   };
 
   const handleDurationBlur = () => {
-    const raw = durationInput.trim();
-    // `Number('')` is 0, which would clamp up to 1, so treat blank as unparseable.
-    const parsed = raw === '' ? Number.NaN : Number(raw);
+    const parsed = parseDecimalInput(durationInput);
 
     if (!Number.isFinite(parsed)) {
-      setDurationInput(selectedType ? String(selectedType.baseDurationMinutes) : '');
-      updateField('duration', selectedType?.baseDurationMinutes ?? 0);
+      const fallback = defaultDuration(selectedType);
+      setDurationInput(durationInputFor(fallback, durationUnit));
+      updateField('duration', fallback);
       return;
     }
 
-    const clamped = parseDuration(parsed);
-    setDurationInput(String(clamped));
+    const clamped = parseDuration(parsed, durationUnit);
+    setDurationInput(durationInputFor(clamped, durationUnit));
     updateField('duration', clamped);
   };
 
+  // Only a duration the server would accept as entered gets a preview.
+  const hasValidDuration = normalizeDuration(formData.duration, durationUnit) === formData.duration;
+
   const pricePreview = useMemo(() => {
-    if (!selectedType || !Number.isInteger(formData.duration) || formData.duration < 1) {
-      return null;
-    }
-    return calculateSessionPrice(
-      formData.duration,
-      selectedType.baseDurationMinutes,
-      selectedType.basePrice
-    );
-  }, [formData.duration, selectedType]);
+    if (!selectedType || !hasValidDuration) return null;
+    return calculateLessonPrice(formData.duration, durationUnit, selectedType);
+  }, [durationUnit, formData.duration, hasValidDuration, selectedType]);
 
   const handleLessonTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const nextId = e.target.value;
     const nextType = lessonTypes.find((type) => type.id === nextId) ?? null;
+    const nextDuration = defaultDuration(nextType);
     updateField('lessonTypeId', nextId);
-    setDurationInput(nextType ? String(nextType.baseDurationMinutes) : '');
-    updateField('duration', nextType?.baseDurationMinutes ?? 0);
+    setDurationInput(durationInputFor(nextDuration, nextType?.durationUnit ?? 'minutes'));
+    updateField('duration', nextDuration);
   };
 
   const isEditing = Boolean(editing);
+  const unitMinutes = isTeachingUnits && hasValidDuration ? toMinutes(formData.duration, durationUnit) : null;
 
   return (
     <form
@@ -196,7 +214,7 @@ export function LessonForm({
             </option>
             {lessonTypes.map((type) => (
               <option key={type.id} value={type.id}>
-                {type.name} ({formatPrice(type.basePrice)} / {formatDuration(type.baseDurationMinutes)})
+                {type.name} ({formatPrice(type.basePrice)} / {formatBaseDuration(type)})
               </option>
             ))}
           </select>
@@ -258,13 +276,15 @@ export function LessonForm({
 
         <div>
           <label htmlFor="lesson-duration" className="mb-1.5 block text-sm font-medium text-slate-700">
-            Duration (minutes)
+            {isTeachingUnits ? 'Duration (UE)' : 'Duration (minutes)'}
           </label>
           <input
             id="lesson-duration"
-            type="number"
-            min={1}
-            max={9999}
+            // A text field lets teaching units take a decimal comma ("3,2").
+            type={isTeachingUnits ? 'text' : 'number'}
+            inputMode={isTeachingUnits ? 'decimal' : 'numeric'}
+            min={DURATION_LIMITS.minutes.min}
+            max={DURATION_LIMITS.minutes.max}
             step={1}
             value={durationInput}
             onChange={handleDurationChange}
@@ -278,14 +298,19 @@ export function LessonForm({
               {errors.duration}
             </p>
           )}
+          {unitMinutes != null && (
+            <p className="mt-1 text-sm text-slate-500" aria-live="polite">
+              {Number.isInteger(unitMinutes) ? '=' : '≈'} {Math.round(unitMinutes)} min
+            </p>
+          )}
         </div>
 
         {pricePreview != null && selectedType && (
           <p className="sm:col-span-2 text-sm text-slate-600" aria-live="polite">
             Estimated cost:{' '}
             <span className="font-medium text-slate-800">{formatPrice(pricePreview)}</span>
-            {' '}({formatDuration(formData.duration)} at {formatPrice(selectedType.basePrice)} /{' '}
-            {formatDuration(selectedType.baseDurationMinutes)})
+            {' '}({formatDuration(formData.duration, durationUnit)} at {formatPrice(selectedType.basePrice)} /{' '}
+            {formatBaseDuration(selectedType)})
           </p>
         )}
 

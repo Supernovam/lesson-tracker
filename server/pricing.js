@@ -1,3 +1,5 @@
+import { baseQuantity } from './durationUnit.js';
+
 /**
  * Proportional session price: (actual duration / base duration) * base price,
  * rounded to 2 decimal places.
@@ -25,6 +27,6 @@ export function calculateSessionPrice(
  * so the duration is priced against one unit rather than converted to minutes.
  */
 export function calculateLessonPrice(duration, durationUnit, lessonType) {
-  const baseDuration = durationUnit === 'teaching_units' ? 1 : lessonType.baseDurationMinutes;
-  return calculateSessionPrice(duration, baseDuration, lessonType.basePrice);
+  const base = baseQuantity(durationUnit, lessonType.baseDurationMinutes);
+  return calculateSessionPrice(duration, base, lessonType.basePrice);
 }

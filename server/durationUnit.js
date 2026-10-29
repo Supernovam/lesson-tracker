@@ -20,15 +20,19 @@ export function isDurationUnit(value) {
 export function normalizeDuration(value, unit) {
   if (!Number.isFinite(value)) return null;
   const { min, max } = DURATION_LIMITS[unit];
+  const rounded = roundToUnit(value, unit);
+  if (unit === 'teaching_units' && Math.abs(value - rounded) > 1e-8) return null;
+  return rounded >= min && rounded <= max ? rounded : null;
+}
 
-  if (unit === 'teaching_units') {
-    const rounded = Math.round(value * 100) / 100;
-    if (Math.abs(value - rounded) > 1e-8) return null;
-    return rounded >= min && rounded <= max ? rounded : null;
-  }
+/** Precision of a duration: whole minutes (floored), or teaching units to 2 decimals. */
+export function roundToUnit(value, unit) {
+  return unit === 'teaching_units' ? Math.round(value * 100) / 100 : Math.floor(value);
+}
 
-  const whole = Math.floor(value);
-  return whole >= min && whole <= max ? whole : null;
+/** What a lesson type's base price buys: its base minutes, or one teaching unit. */
+export function baseQuantity(unit, baseDurationMinutes) {
+  return unit === 'teaching_units' ? 1 : baseDurationMinutes;
 }
 
 export function durationRangeError(unit) {

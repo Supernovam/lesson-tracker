@@ -37,6 +37,7 @@ export function createLesson(overrides: Partial<Lesson> = {}): Lesson {
     studentName: 'Alex',
     date: '2026-09-03',
     duration: 60,
+    durationUnit: 'minutes',
     comment: '',
     createdAt: 1,
     lessonTypeId: 'type-1',

@@ -30,6 +30,7 @@ const createLesson = (overrides: Partial<Lesson>): Lesson => ({
   studentName: '',
   date: '2025-01-01',
   duration: 60,
+  durationUnit: 'minutes',
   comment: '',
   createdAt: 0,
   lessonTypeId: null,
@@ -75,6 +76,25 @@ describe('LessonTable', () => {
     const rows = screen.getAllByRole('row').slice(1);
     expect(rows).toHaveLength(1);
     expect(rows[0].textContent).toContain('Alice');
+  });
+
+  it('shows each lesson duration in its own unit', () => {
+    const lessons: Lesson[] = [
+      createLesson({ id: '1', studentName: 'Charlie', date: '2025-01-10', duration: 145 }),
+      createLesson({
+        id: '2',
+        studentName: 'Alice',
+        date: '2025-01-12',
+        duration: 3.2,
+        durationUnit: 'teaching_units',
+      }),
+    ];
+
+    render(<LessonTable schools={SCHOOLS} lessons={lessons} onDelete={vi.fn()} onEdit={vi.fn()} />);
+
+    const [first, second] = dataRows();
+    expect(first.textContent).toContain('145 min');
+    expect(second.textContent).toContain('3,2 UE');
   });
 
   it('renders lessons in original order by default', () => {

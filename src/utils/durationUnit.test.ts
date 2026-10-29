@@ -4,8 +4,11 @@ import {
   DURATION_UNITS,
   TEACHING_UNIT_MINUTES,
   isDurationUnit,
+  baseQuantity,
   normalizeDuration,
+  roundToUnit,
   toMinutes,
+  type DurationUnit,
 } from './durationUnit';
 
 describe('duration unit constants', () => {
@@ -81,5 +84,25 @@ describe('toMinutes', () => {
     [0.01, 0.45],
   ])('converts %j UE to %j minutes', (units, minutes) => {
     expect(toMinutes(units, 'teaching_units')).toBe(minutes);
+  });
+});
+
+describe('roundToUnit', () => {
+  it.each<[number, DurationUnit, number]>([
+    [60.9, 'minutes', 60],
+    [1.755, 'teaching_units', 1.76],
+    [3.2, 'teaching_units', 3.2],
+  ])('rounds %j %s to %j', (value, unit, expected) => {
+    expect(roundToUnit(value, unit)).toBe(expected);
+  });
+});
+
+describe('baseQuantity', () => {
+  it('is the base minutes of a minutes type', () => {
+    expect(baseQuantity('minutes', 150)).toBe(150);
+  });
+
+  it('is one unit for a teaching-unit type', () => {
+    expect(baseQuantity('teaching_units', 45)).toBe(1);
   });
 });

@@ -19,6 +19,7 @@ const baseLesson = (overrides: Partial<Lesson> = {}): Lesson => ({
   studentName: 'Alice',
   date: '2025-01-15',
   duration: 45,
+  durationUnit: 'minutes',
   comment: 'Notes',
   createdAt: 100,
   lessonTypeId: 'type-1',
@@ -136,6 +137,13 @@ describe('LessonExcelExporter', () => {
         '50,40\u00A0€',
         '—',
       ]);
+    });
+
+    it('shows a teaching-unit lesson in UE', () => {
+      const row = LessonExcelExporter.mapLessonToDisplayRow(
+        baseLesson({ duration: 1.75, durationUnit: 'teaching_units' })
+      );
+      expect(row[column('Duration')]).toBe('1,75 UE');
     });
 
     it('uses an em dash when a lesson has no student name', () => {

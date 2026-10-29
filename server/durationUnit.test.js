@@ -5,7 +5,9 @@ import {
   TEACHING_UNIT_MINUTES,
   durationRangeError,
   isDurationUnit,
+  baseQuantity,
   normalizeDuration,
+  roundToUnit,
 } from './durationUnit.js';
 
 describe('duration unit constants', () => {
@@ -77,5 +79,25 @@ describe('durationRangeError', () => {
     expect(durationRangeError('teaching_units')).toBe(
       'duration must be between 0.01 and 20 teaching units with at most 2 decimal places'
     );
+  });
+});
+
+describe('roundToUnit', () => {
+  it.each([
+    [60.9, 'minutes', 60],
+    [1.755, 'teaching_units', 1.76],
+    [3.2, 'teaching_units', 3.2],
+  ])('rounds %j %s to %j', (value, unit, expected) => {
+    expect(roundToUnit(value, unit)).toBe(expected);
+  });
+});
+
+describe('baseQuantity', () => {
+  it('is the base minutes of a minutes type', () => {
+    expect(baseQuantity('minutes', 150)).toBe(150);
+  });
+
+  it('is one unit for a teaching-unit type', () => {
+    expect(baseQuantity('teaching_units', 45)).toBe(1);
   });
 });

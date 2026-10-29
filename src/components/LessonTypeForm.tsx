@@ -3,6 +3,7 @@ import type React from 'react';
 import { Tags } from 'lucide-react';
 import type { LessonType, LessonTypeFormData } from '../types/lessonType';
 import { parseDuration, validateLessonTypeForm } from '../utils/validation';
+import { DURATION_LIMITS, TEACHING_UNIT_MINUTES, type DurationUnit } from '../utils/durationUnit';
 
 interface LessonTypeFormProps {
   editing: LessonType | null;
@@ -14,7 +15,13 @@ const emptyFormState: LessonTypeFormData = {
   name: '',
   basePrice: Number.NaN,
   baseDurationMinutes: 0,
+  durationUnit: 'minutes',
 };
+
+const unitOptions: { value: DurationUnit; label: string }[] = [
+  { value: 'minutes', label: 'Minutes' },
+  { value: 'teaching_units', label: 'Teaching units (UE)' },
+];
 
 export function LessonTypeForm({ editing, onSubmit, onCancelEdit }: LessonTypeFormProps) {
   const [formData, setFormData] = useState<LessonTypeFormData>(emptyFormState);
@@ -30,6 +37,7 @@ export function LessonTypeForm({ editing, onSubmit, onCancelEdit }: LessonTypeFo
         name: editing.name,
         basePrice: editing.basePrice,
         baseDurationMinutes: editing.baseDurationMinutes,
+        durationUnit: editing.durationUnit,
       });
       setPriceInput(String(editing.basePrice));
       setDurationInput(String(editing.baseDurationMinutes));
@@ -110,7 +118,16 @@ export function LessonTypeForm({ editing, onSubmit, onCancelEdit }: LessonTypeFo
     updateField('baseDurationMinutes', clamped);
   };
 
+  const handleUnitChange = (unit: DurationUnit) => {
+    updateField('durationUnit', unit);
+    // The base duration field is hidden or shown again, so an error from an earlier submit no longer applies.
+    setErrors((prev) => ({ ...prev, baseDurationMinutes: undefined }));
+  };
+
   const isEditing = Boolean(editing);
+  const isTeachingUnits = formData.durationUnit === 'teaching_units';
+  const lessonCount = editing?.lessonCount ?? 0;
+  const isUnitLocked = lessonCount > 0;
 
   return (
     <form
@@ -146,9 +163,43 @@ export function LessonTypeForm({ editing, onSubmit, onCancelEdit }: LessonTypeFo
           )}
         </div>
 
+        <fieldset className="sm:col-span-2" aria-describedby={isUnitLocked ? 'lesson-type-unit-hint' : undefined}>
+          <legend className="mb-1.5 block text-sm font-medium text-slate-700">Bill by</legend>
+          <div className="inline-flex rounded-lg border border-slate-300 p-0.5">
+            {unitOptions.map((option) => {
+              const checked = formData.durationUnit === option.value;
+              return (
+                <label
+                  key={option.value}
+                  className={`rounded-md px-3 py-1.5 text-sm font-medium transition has-focus-visible:ring-2 has-focus-visible:ring-slate-500 ${
+                    checked ? 'bg-slate-800 text-white' : 'text-slate-700 hover:bg-slate-100'
+                  } ${isUnitLocked ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}
+                >
+                  <input
+                    type="radio"
+                    name="lesson-type-unit"
+                    value={option.value}
+                    checked={checked}
+                    onChange={() => handleUnitChange(option.value)}
+                    disabled={isUnitLocked}
+                    className="sr-only"
+                  />
+                  {option.label}
+                </label>
+              );
+            })}
+          </div>
+          {isUnitLocked && (
+            <p id="lesson-type-unit-hint" className="mt-1 text-sm text-slate-500">
+              Used by {lessonCount} {lessonCount === 1 ? 'lesson' : 'lessons'}. Create a new lesson
+              type to bill differently.
+            </p>
+          )}
+        </fieldset>
+
         <div>
           <label htmlFor="lesson-type-price" className="mb-1.5 block text-sm font-medium text-slate-700">
-            Base price (€)
+            {isTeachingUnits ? 'Price per UE (€)' : 'Base price (€)'}
           </label>
           <input
             id="lesson-type-price"
@@ -166,31 +217,36 @@ export function LessonTypeForm({ editing, onSubmit, onCancelEdit }: LessonTypeFo
               {errors.basePrice}
             </p>
           )}
-        </div>
-
-        <div>
-          <label htmlFor="lesson-type-duration" className="mb-1.5 block text-sm font-medium text-slate-700">
-            Base duration (minutes)
-          </label>
-          <input
-            id="lesson-type-duration"
-            type="number"
-            min={1}
-            max={9999}
-            step={1}
-            value={durationInput}
-            onChange={handleDurationChange}
-            onBlur={handleDurationBlur}
-            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-800 focus:border-slate-500 focus:outline-hidden focus:ring-1 focus:ring-slate-500"
-            aria-invalid={Boolean(errors.baseDurationMinutes)}
-            aria-describedby={errors.baseDurationMinutes ? 'lesson-type-duration-error' : undefined}
-          />
-          {errors.baseDurationMinutes && (
-            <p id="lesson-type-duration-error" className="mt-1 text-sm text-red-600" role="alert">
-              {errors.baseDurationMinutes}
-            </p>
+          {isTeachingUnits && (
+            <p className="mt-1 text-sm text-slate-500">1 UE = {TEACHING_UNIT_MINUTES} min</p>
           )}
         </div>
+
+        {!isTeachingUnits && (
+          <div>
+            <label htmlFor="lesson-type-duration" className="mb-1.5 block text-sm font-medium text-slate-700">
+              Base duration (minutes)
+            </label>
+            <input
+              id="lesson-type-duration"
+              type="number"
+              min={DURATION_LIMITS.minutes.min}
+              max={DURATION_LIMITS.minutes.max}
+              step={1}
+              value={durationInput}
+              onChange={handleDurationChange}
+              onBlur={handleDurationBlur}
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-800 focus:border-slate-500 focus:outline-hidden focus:ring-1 focus:ring-slate-500"
+              aria-invalid={Boolean(errors.baseDurationMinutes)}
+              aria-describedby={errors.baseDurationMinutes ? 'lesson-type-duration-error' : undefined}
+            />
+            {errors.baseDurationMinutes && (
+              <p id="lesson-type-duration-error" className="mt-1 text-sm text-red-600" role="alert">
+                {errors.baseDurationMinutes}
+              </p>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="mt-6 flex flex-wrap items-center gap-3">
