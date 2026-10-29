@@ -41,6 +41,15 @@ export function createTestApp(router, { mountPath, user = { email: 'teacher@exam
   return app;
 }
 
+/** A pool whose every query fails, with a Postgres error `code` such as '23505'. */
+export function failingPool(code) {
+  return createFakePool(() => {
+    const err = new Error('query failed');
+    err.code = code;
+    throw err;
+  });
+}
+
 export function queryFor(pool, fragment) {
   return pool.calls.find((call) => call.sql.includes(fragment));
 }

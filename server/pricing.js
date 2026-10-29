@@ -19,3 +19,12 @@ export function calculateSessionPrice(
 
   return Math.round((actualDurationMinutes / baseDurationMinutes) * basePrice * 100) / 100;
 }
+
+/**
+ * Price of a lesson in its duration unit. Teaching-unit types charge `basePrice` per UE,
+ * so the duration is priced against one unit rather than converted to minutes.
+ */
+export function calculateLessonPrice(duration, durationUnit, lessonType) {
+  const baseDuration = durationUnit === 'teaching_units' ? 1 : lessonType.baseDurationMinutes;
+  return calculateSessionPrice(duration, baseDuration, lessonType.basePrice);
+}
