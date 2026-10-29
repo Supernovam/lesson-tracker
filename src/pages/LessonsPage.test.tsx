@@ -11,6 +11,7 @@ const { lesson, lessonType, school, updateLesson, addLesson, deleteLesson } = vi
     studentName: 'Alex',
     date: '2026-09-21',
     duration: 60,
+    durationUnit: 'minutes',
     comment: 'Went well',
     createdAt: 1,
     lessonTypeId: 'private',
@@ -32,6 +33,8 @@ const { lesson, lessonType, school, updateLesson, addLesson, deleteLesson } = vi
     name: 'Private Course',
     basePrice: 28,
     baseDurationMinutes: 45,
+    durationUnit: 'minutes',
+    lessonCount: 0,
     createdAt: 1,
     updatedAt: 1,
   };

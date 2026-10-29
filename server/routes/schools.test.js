@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import request from 'supertest';
 import { createSchoolsRouter } from './schools.js';
-import { createFakePool, createTestApp, queryFor } from './testHelpers.js';
+import { createFakePool, createTestApp, failingPool, queryFor } from './testHelpers.js';
 
 function appFor(pool, options = {}) {
   const router = createSchoolsRouter({ pool, isDbReady: options.isDbReady ?? (() => true) });
@@ -19,14 +19,6 @@ function writePool() {
       return { rows: [{ id, title, billingName, address, createdAt: 1, updatedAt }] };
     }
     return { rows: [] };
-  });
-}
-
-function failingPool(code) {
-  return createFakePool(() => {
-    const err = new Error('constraint violation');
-    err.code = code;
-    throw err;
   });
 }
 

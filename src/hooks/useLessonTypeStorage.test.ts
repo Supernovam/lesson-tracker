@@ -36,11 +36,18 @@ const privateCourse = {
   name: 'Private Course',
   basePrice: 28,
   baseDurationMinutes: 45,
+  durationUnit: 'minutes',
+  lessonCount: 0,
   createdAt: 1,
   updatedAt: 1,
 };
 
-const formData = { name: '  Private Course  ', basePrice: 28, baseDurationMinutes: 45 };
+const formData = {
+  name: '  Private Course  ',
+  basePrice: 28,
+  baseDurationMinutes: 45,
+  durationUnit: 'minutes' as const,
+};
 
 describe('useLessonTypeStorage', () => {
   beforeEach(() => {
@@ -91,6 +98,7 @@ describe('useLessonTypeStorage', () => {
       name: 'Private Course',
       basePrice: 28,
       baseDurationMinutes: 45,
+      durationUnit: 'minutes',
     });
     expect(result.current.lessonTypes).toHaveLength(1);
   });

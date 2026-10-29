@@ -1,6 +1,6 @@
 import { Pencil, Trash2, Clock, Euro } from 'lucide-react';
 import type { LessonType } from '../types/lessonType';
-import { formatDuration, formatPrice } from '../utils/format';
+import { formatBaseDuration, formatPrice } from '../utils/format';
 
 interface LessonTypeTableProps {
   lessonTypes: LessonType[];
@@ -59,9 +59,7 @@ export function LessonTypeTable({ lessonTypes, onEdit, onDelete }: LessonTypeTab
               >
                 <td className="px-4 py-3 font-medium text-slate-800">{lessonType.name}</td>
                 <td className="px-4 py-3 text-slate-600">{formatPrice(lessonType.basePrice)}</td>
-                <td className="px-4 py-3 text-slate-600">
-                  {formatDuration(lessonType.baseDurationMinutes)}
-                </td>
+                <td className="px-4 py-3 text-slate-600">{formatBaseDuration(lessonType)}</td>
                 <td className="px-4 py-3">
                   <div className="flex items-center justify-end gap-1">
                     <button

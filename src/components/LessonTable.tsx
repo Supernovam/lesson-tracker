@@ -332,7 +332,7 @@ export function LessonTable({ lessons, schools, onEdit, onDelete }: LessonTableP
                   <td className="truncate px-2 py-3 text-slate-600">{lesson.schoolTitle || '—'}</td>
                   <td className="truncate px-2 py-3 font-medium text-slate-800">{lesson.studentName || '—'}</td>
                   <td className="overflow-hidden whitespace-nowrap px-2 py-3 text-slate-600">{formatDisplayDate(lesson.date)}</td>
-                  <td className="overflow-hidden whitespace-nowrap px-2 py-3 text-slate-600">{formatDuration(lesson.duration)}</td>
+                  <td className="overflow-hidden whitespace-nowrap px-2 py-3 text-slate-600">{formatDuration(lesson.duration, lesson.durationUnit)}</td>
                   <td className="overflow-hidden whitespace-nowrap px-2 py-3 text-slate-600">
                     {lesson.calculatedPrice == null ? '—' : formatPrice(lesson.calculatedPrice)}
                   </td>

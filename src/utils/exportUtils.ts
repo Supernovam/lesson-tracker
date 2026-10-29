@@ -39,7 +39,7 @@ export class LessonExcelExporter {
       lesson.schoolTitle || '—',
       lesson.studentName || '—',
       formatDisplayDate(lesson.date),
-      formatDuration(lesson.duration),
+      formatDuration(lesson.duration, lesson.durationUnit),
       lesson.calculatedPrice == null ? '—' : formatPrice(lesson.calculatedPrice),
       lesson.comment || '—',
     ];

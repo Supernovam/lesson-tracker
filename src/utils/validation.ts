@@ -1,11 +1,17 @@
 import type { LessonFormData, LessonValidationResult } from '../types/lesson';
 import type { LessonTypeFormData, LessonTypeValidationResult } from '../types/lessonType';
 import type { SchoolFormData, SchoolValidationResult } from '../types/school';
+import { DURATION_LIMITS, normalizeDuration, roundToUnit, type DurationUnit } from './durationUnit';
+import { formatUnitCountInput } from './format';
 
-const MIN_DURATION = 1;
-const MAX_DURATION = 9999;
+const { min: MIN_DURATION, max: MAX_DURATION } = DURATION_LIMITS.minutes;
+const { min: MIN_UNITS, max: MAX_UNITS } = DURATION_LIMITS.teaching_units;
 
-export function validateLessonForm(data: LessonFormData): LessonValidationResult {
+/** `unit` is the selected lesson type's: teaching units allow decimals, minutes do not. */
+export function validateLessonForm(
+  data: LessonFormData,
+  unit: DurationUnit = 'minutes'
+): LessonValidationResult {
   const errors: LessonValidationResult['errors'] = {};
 
   if (!data.date.trim()) {
@@ -18,7 +24,11 @@ export function validateLessonForm(data: LessonFormData): LessonValidationResult
   }
 
   const durationNum = Number(data.duration);
-  if (!Number.isInteger(durationNum) || durationNum < MIN_DURATION) {
+  if (unit === 'teaching_units') {
+    if (normalizeDuration(durationNum, unit) == null) {
+      errors.duration = `Duration must be between ${formatUnitCountInput(MIN_UNITS)} and ${MAX_UNITS} UE, with at most 2 decimals`;
+    }
+  } else if (!Number.isInteger(durationNum) || durationNum < MIN_DURATION) {
     errors.duration = `Duration must be a positive integer (${MIN_DURATION}-${MAX_DURATION} minutes)`;
   } else if (durationNum > MAX_DURATION) {
     errors.duration = `Duration must not exceed ${MAX_DURATION} minutes`;
@@ -39,18 +49,25 @@ export function validateLessonForm(data: LessonFormData): LessonValidationResult
 }
 
 /**
- * Parses and clamps duration to a positive integer. Used for normalizing input.
+ * Parses and clamps a duration into its unit's range: whole minutes, or teaching units
+ * rounded to 2 decimals. Used for normalizing input.
  */
-export function parseDuration(value: unknown): number {
+export function parseDuration(value: unknown, unit: DurationUnit = 'minutes'): number {
+  const { min, max } = DURATION_LIMITS[unit];
   const num = Number(value);
   if (!Number.isFinite(num)) {
     // Clamp +/-Infinity to sensible bounds.
-    if (num === Infinity) return MAX_DURATION;
-    return MIN_DURATION;
+    if (num === Infinity) return max;
+    return min;
   }
-  if (num < MIN_DURATION) return MIN_DURATION;
-  if (num > MAX_DURATION) return MAX_DURATION;
-  return Math.floor(num);
+  return Math.min(Math.max(roundToUnit(num, unit), min), max);
+}
+
+/** Reads a typed decimal such as "3,2" or "3.2"; blank or malformed input gives NaN. */
+export function parseDecimalInput(raw: string): number {
+  const trimmed = raw.trim();
+  if (trimmed === '') return Number.NaN;
+  return Number(trimmed.replace(',', '.'));
 }
 
 function hasAtMostTwoDecimals(value: number): boolean {
@@ -62,7 +79,7 @@ function hasAtMostTwoDecimals(value: number): boolean {
  * Validates lesson type form data.
  * - name: non-empty, trimmed
  * - basePrice: finite number >= 0 with at most 2 decimal places
- * - baseDurationMinutes: positive integer between MIN_DURATION and MAX_DURATION
+ * - baseDurationMinutes: positive integer between MIN_DURATION and MAX_DURATION (minutes types only)
  */
 export function validateLessonTypeForm(data: LessonTypeFormData): LessonTypeValidationResult {
   const errors: LessonTypeValidationResult['errors'] = {};
@@ -79,10 +96,12 @@ export function validateLessonTypeForm(data: LessonTypeFormData): LessonTypeVali
     errors.basePrice = 'Base price must have at most 2 decimal places';
   }
 
+  // A teaching-unit type has no base duration to enter: it is priced per UE.
   const durationNum = Number(data.baseDurationMinutes);
-  if (!Number.isInteger(durationNum) || durationNum < MIN_DURATION) {
+  const isMinutes = data.durationUnit === 'minutes';
+  if (isMinutes && (!Number.isInteger(durationNum) || durationNum < MIN_DURATION)) {
     errors.baseDurationMinutes = `Duration must be a positive integer (${MIN_DURATION}-${MAX_DURATION} minutes)`;
-  } else if (durationNum > MAX_DURATION) {
+  } else if (isMinutes && durationNum > MAX_DURATION) {
     errors.baseDurationMinutes = `Duration must not exceed ${MAX_DURATION} minutes`;
   }
 

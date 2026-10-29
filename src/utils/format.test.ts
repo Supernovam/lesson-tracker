@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { describeLesson, formatDisplayDate, safeFilenamePart, sumLessonPrices, getTodayISO, formatDuration, formatPrice, formatInvoicePrice } from './format';
+import { describeLesson, formatDisplayDate, safeFilenamePart, sumLessonPrices, getTodayISO, formatDuration, formatPrice, formatInvoicePrice, formatBaseDuration, formatUnitCountInput } from './format';
 
 describe('formatDisplayDate', () => {
   it('formats YYYY-MM-DD to European style DD.MM.YYYY', () => {
@@ -35,6 +35,41 @@ describe('formatDuration', () => {
   it('appends " min" to number', () => {
     expect(formatDuration(120)).toBe('120 min');
     expect(formatDuration(1)).toBe('1 min');
+  });
+
+  it('appends " min" when the unit is minutes', () => {
+    expect(formatDuration(145, 'minutes')).toBe('145 min');
+  });
+
+  it.each([
+    [3.2, '3,2 UE'],
+    [1.75, '1,75 UE'],
+    [2, '2 UE'],
+    [0.01, '0,01 UE'],
+    [12.5, '12,5 UE'],
+  ])('shows %j teaching units with a German decimal comma', (units, expected) => {
+    expect(formatDuration(units, 'teaching_units')).toBe(expected);
+  });
+});
+
+describe('formatUnitCountInput', () => {
+  it.each([
+    [3.2, '3,2'],
+    [1.75, '1,75'],
+    [1, '1'],
+    [20, '20'],
+  ])('formats %j for the duration field as %j', (units, expected) => {
+    expect(formatUnitCountInput(units)).toBe(expected);
+  });
+});
+
+describe('formatBaseDuration', () => {
+  it('shows the base minutes of a minutes type', () => {
+    expect(formatBaseDuration({ baseDurationMinutes: 150, durationUnit: 'minutes' })).toBe('150 min');
+  });
+
+  it('shows one unit for a teaching-unit type', () => {
+    expect(formatBaseDuration({ baseDurationMinutes: 45, durationUnit: 'teaching_units' })).toBe('1 UE');
   });
 });
 

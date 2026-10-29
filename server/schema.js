@@ -54,6 +54,35 @@ export async function ensureSchema(pool) {
     ALTER TABLE lessons
       ADD COLUMN IF NOT EXISTS school_id text REFERENCES schools(id) ON DELETE RESTRICT
   `);
+  // Lessons copy the unit from their type on write, so each says which unit `duration` is in.
+  for (const table of ['lesson_types', 'lessons']) {
+    await pool.query(`
+      ALTER TABLE ${table}
+        ADD COLUMN IF NOT EXISTS duration_unit text NOT NULL DEFAULT 'minutes'
+          CHECK (duration_unit IN ('minutes', 'teaching_units'))
+    `);
+  }
+  // Backs the per-type lesson counts and the unit lock on lesson types.
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS lessons_lesson_type_id_idx ON lessons (lesson_type_id)
+  `);
+  // Teaching units carry decimals (3.2 UE). Guarded so restarts do not re-run the ALTER.
+  await pool.query(`
+    DO $$
+    BEGIN
+      IF EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_schema = current_schema()
+          AND table_name = 'lessons'
+          AND column_name = 'duration'
+          AND data_type = 'integer'
+      ) THEN
+        ALTER TABLE lessons ALTER COLUMN duration TYPE numeric(7, 2);
+      END IF;
+    END
+    $$
+  `);
   await pool.query(`
     CREATE TABLE IF NOT EXISTS invoice_settings (
       id text PRIMARY KEY,

@@ -2,13 +2,15 @@ import crypto from 'crypto';
 import { Router } from 'express';
 import { requireAuth } from '../auth.js';
 import { requireDbReady } from './routeHelpers.js';
-import { calculateSessionPrice } from '../pricing.js';
+import { calculateLessonPrice } from '../pricing.js';
+import { durationRangeError, normalizeDuration } from '../durationUnit.js';
 
 const LESSON_RETURNING = `
   l.id,
   l.student_name AS "studentName",
   l.date::text AS date,
   l.duration,
+  l.duration_unit AS "durationUnit",
   l.comment,
   l.created_at AS "createdAt",
   l.lesson_type_id AS "lessonTypeId",
@@ -23,6 +25,7 @@ const LESSON_WRITE_RETURNING = `
   student_name AS "studentName",
   date::text AS date,
   duration,
+  duration_unit AS "durationUnit",
   comment,
   created_at AS "createdAt",
   lesson_type_id AS "lessonTypeId",
@@ -33,6 +36,8 @@ const LESSON_WRITE_RETURNING = `
 function mapLessonRow(row) {
   return {
     ...row,
+    // numeric(7, 2) comes back from pg as a string.
+    duration: Number(row.duration),
     calculatedPrice:
       row.calculatedPrice == null ? null : Math.round(Number(row.calculatedPrice) * 100) / 100,
   };
@@ -46,16 +51,20 @@ function withLessonAssociations(row, lessonType, school) {
   };
 }
 
-async function resolveLessonPricing(pool, lessonTypeId, durationInt) {
+/** Validates the duration in the lesson type's unit, then prices it. */
+async function resolveLessonPricing(pool, lessonTypeId, rawDuration) {
   const lessonType = await findLessonType(pool, lessonTypeId);
   if (!lessonType) return { error: 'lessonTypeId is invalid' };
+  const { durationUnit } = lessonType;
+  const duration = normalizeDuration(rawDuration, durationUnit);
+  if (duration == null) return { error: durationRangeError(durationUnit) };
   return {
     lessonType,
-    calculatedPrice: calculateSessionPrice(
-      durationInt,
-      Number(lessonType.baseDurationMinutes),
-      Number(lessonType.basePrice)
-    ),
+    duration,
+    calculatedPrice: calculateLessonPrice(duration, durationUnit, {
+      baseDurationMinutes: Number(lessonType.baseDurationMinutes),
+      basePrice: Number(lessonType.basePrice),
+    }),
   };
 }
 
@@ -64,22 +73,24 @@ function parseLessonBody(body) {
   if (typeof body.studentName !== 'string') return { error: 'studentName must be a string' };
   const studentName = body.studentName.trim();
   const dateStr = typeof body.date === 'string' ? body.date.trim() : '';
-  const duration = typeof body.duration === 'number' ? body.duration : Number(body.duration);
+  // Only numbers and numeric strings count: `Number()` would turn null, '' or true into 0 or 1.
+  const duration =
+    typeof body.duration === 'number' || (typeof body.duration === 'string' && body.duration.trim())
+      ? Number(body.duration)
+      : Number.NaN;
   const comment = typeof body.comment === 'string' ? body.comment.trim() : '';
   const lessonTypeId = typeof body.lessonTypeId === 'string' ? body.lessonTypeId.trim() : '';
   const schoolId = typeof body.schoolId === 'string' ? body.schoolId.trim() : '';
 
   const date = new Date(dateStr);
-  const durationInt = Number.isInteger(duration) ? duration : Math.floor(duration);
 
   if (!dateStr || Number.isNaN(date.getTime())) return { error: 'date is invalid' };
-  if (!Number.isInteger(durationInt) || durationInt < 1 || durationInt > 9999) {
-    return { error: 'duration must be an integer between 1 and 9999' };
-  }
+  // The allowed range depends on the lesson type's unit, checked once the type is loaded.
+  if (!Number.isFinite(duration)) return { error: 'duration must be a number' };
   if (!lessonTypeId) return { error: 'lessonTypeId is required' };
   if (!schoolId) return { error: 'schoolId is required' };
 
-  return { studentName, dateStr, durationInt, comment, lessonTypeId, schoolId };
+  return { studentName, dateStr, duration, comment, lessonTypeId, schoolId };
 }
 
 async function findLessonType(pool, lessonTypeId) {
@@ -89,7 +100,8 @@ async function findLessonType(pool, lessonTypeId) {
         id,
         name,
         base_price AS "basePrice",
-        base_duration_minutes AS "baseDurationMinutes"
+        base_duration_minutes AS "baseDurationMinutes",
+        duration_unit AS "durationUnit"
       FROM lesson_types
       WHERE id = $1
     `,
@@ -112,7 +124,7 @@ async function findSchool(pool, schoolId) {
 
 async function resolveLessonWrite(pool, parsed) {
   const [priced, school] = await Promise.all([
-    resolveLessonPricing(pool, parsed.lessonTypeId, parsed.durationInt),
+    resolveLessonPricing(pool, parsed.lessonTypeId, parsed.duration),
     findSchool(pool, parsed.schoolId),
   ]);
   if (priced.error) return { error: priced.error };
@@ -157,21 +169,23 @@ export function createLessonsRouter({ pool, isDbReady }) {
       const { rows } = await pool.query(
         `
           INSERT INTO lessons (
-            id, student_name, date, duration, comment, created_at, lesson_type_id, calculated_price, school_id
+            id, student_name, date, duration, comment, created_at, lesson_type_id, calculated_price, school_id,
+            duration_unit
           )
-          VALUES ($1, $2, $3::date, $4, $5, $6, $7, $8, $9)
+          VALUES ($1, $2, $3::date, $4, $5, $6, $7, $8, $9, $10)
           RETURNING ${LESSON_WRITE_RETURNING}
         `,
         [
           id,
           parsed.studentName,
           parsed.dateStr,
-          parsed.durationInt,
+          priced.duration,
           parsed.comment,
           createdAt,
           parsed.lessonTypeId,
           priced.calculatedPrice,
           parsed.schoolId,
+          priced.lessonType.durationUnit,
         ]
       );
 
@@ -204,7 +218,8 @@ export function createLessonsRouter({ pool, isDbReady }) {
             comment = $5,
             lesson_type_id = $6,
             calculated_price = $7,
-            school_id = $8
+            school_id = $8,
+            duration_unit = $9
           WHERE id = $1
           RETURNING ${LESSON_WRITE_RETURNING}
         `,
@@ -212,11 +227,12 @@ export function createLessonsRouter({ pool, isDbReady }) {
           id,
           parsed.studentName,
           parsed.dateStr,
-          parsed.durationInt,
+          priced.duration,
           parsed.comment,
           parsed.lessonTypeId,
           priced.calculatedPrice,
           parsed.schoolId,
+          priced.lessonType.durationUnit,
         ]
       );
       if (rows.length === 0) return res.status(404).json({ error: 'lesson not found' });

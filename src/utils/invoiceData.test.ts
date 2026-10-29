@@ -76,6 +76,14 @@ describe('mapLessonToInvoiceRow', () => {
     ).toEqual(['Type B', 'Alex', '03.09.2026', '90 min', '56,00€']);
     expect(mapLessonToInvoiceRow(createLesson({ calculatedPrice: null }))[4]).toBe('—');
   });
+
+  it('shows a teaching-unit lesson in UE', () => {
+    const row = mapLessonToInvoiceRow(
+      createLesson({ duration: 3.2, durationUnit: 'teaching_units', calculatedPrice: 102.4 })
+    );
+    expect(row[3]).toBe('3,2 UE');
+    expect(row[4]).toBe('102,40€');
+  });
 });
 
 describe('invoice filenames', () => {

@@ -15,6 +15,7 @@ function toPayload(formData: LessonTypeFormData) {
     name: formData.name.trim(),
     basePrice: formData.basePrice,
     baseDurationMinutes: formData.baseDurationMinutes,
+    durationUnit: formData.durationUnit,
   };
 }
 

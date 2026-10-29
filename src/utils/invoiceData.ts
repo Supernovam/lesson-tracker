@@ -14,7 +14,7 @@ export function mapLessonToInvoiceRow(lesson: Lesson): [string, string, string, 
     lesson.lessonTypeName || '—',
     lesson.studentName || '—',
     formatDisplayDate(lesson.date),
-    formatDuration(lesson.duration),
+    formatDuration(lesson.duration, lesson.durationUnit),
     lesson.calculatedPrice == null ? '—' : formatInvoicePrice(lesson.calculatedPrice),
   ];
 }
